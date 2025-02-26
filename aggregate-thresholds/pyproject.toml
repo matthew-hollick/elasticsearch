@@ -1,0 +1,26 @@
+[project]
+name = "aggregate-thresholds"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.13"
+dependencies = [
+    "requests",
+    "jinja2",
+]
+
+[dependency-groups]
+dev = [
+    "black",
+    "isort",
+    "flake8",
+    "ruff"
+]
+
+[tool.black]
+line-length = 100
+target-version = ["py38"]
+
+[tool.isort]
+profile = "black"
+line_length = 100

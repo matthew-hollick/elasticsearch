@@ -1,0 +1,63 @@
+// Initialize health structure if it doesn't exist
+if (ctx.health == null) {
+  ctx.health = new HashMap();
+  ctx.health.issues = new ArrayList();
+}
+
+// Initialize SLO health structure
+if (ctx.health.slo == null) {
+  ctx.health.slo = new HashMap();
+  ctx.health.slo.metrics = new ArrayList();
+}
+
+// Check if we have SLO relevant metrics
+if (ctx.containsKey('metadata.slo_relevant') && ctx['metadata.slo_relevant'] == true) {
+
+  // Get service details
+  def serviceName = ctx.containsKey('service.name') ? ctx['service.name'] : 'unknown';
+  def serviceType = ctx.containsKey('service.type') ? ctx['service.type'] : 'unknown';
+  def environment = ctx.containsKey('service.environment') ? ctx['service.environment'] : 'unknown';
+
+  // Determine SLO status based on health checks
+  def sloStatus = 'met';  // Default to met
+
+  // Check if we have health issues
+  if (ctx.health.issues != null && !ctx.health.issues.isEmpty()) {
+    // Count critical and warning issues
+    def criticalCount = 0;
+    def warningCount = 0;
+
+    for (def issue : ctx.health.issues) {
+      if (issue.severity == 'critical') {
+        criticalCount++;
+      } else if (issue.severity == 'warning') {
+        warningCount++;
+      }
+    }
+
+    // Determine SLO status based on issue counts
+    if (criticalCount > 0) {
+      sloStatus = 'breached';
+    } else if (warningCount > 0) {
+      sloStatus = 'at_risk';
+    }
+  }
+
+  // Create SLO metric
+  def sloMetric = new HashMap();
+  sloMetric.service = serviceName;
+  sloMetric.type = serviceType;
+  sloMetric.environment = environment;
+  sloMetric.status = sloStatus;
+  sloMetric.timestamp = ctx['@timestamp'];
+
+  // Add to SLO metrics list
+  ctx.health.slo.metrics.add(sloMetric);
+
+  // Update overall SLO status
+  if (ctx.health.slo.status == null ||
+      (sloStatus == 'breached' && ctx.health.slo.status != 'breached') ||
+      (sloStatus == 'at_risk' && ctx.health.slo.status == 'met')) {
+    ctx.health.slo.status = sloStatus;
+  }
+}

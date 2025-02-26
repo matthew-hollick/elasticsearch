@@ -1,0 +1,2204 @@
+# Step 1: Kibana DevTools Commands to Delete Existing Implementations
+
+# Stop the transform first to prevent data processing during cleanup
+GET _transform/service_health_transform
+# If the above returns a transform, then run:
+POST _transform/service_health_transform/_stop?force=true
+
+# Delete the transform
+DELETE _transform/service_health_transform
+
+# Delete the ingest pipeline
+DELETE _ingest/pipeline/service_health_evaluation
+
+# Delete the enrichment policy
+GET _enrich/policy/service_threshold_policy
+# If the policy exists, delete it:
+DELETE _enrich/policy/service_threshold_policy
+
+# Delete indices
+GET _cat/indices/metrics-test,service_thresholds,service-health
+
+# Delete the metrics-test index
+DELETE metrics-test
+
+# Delete the service_thresholds index
+DELETE service_thresholds
+
+# Delete the service-health index
+DELETE service-health
+
+# Delete any index templates
+DELETE _index_template/service-health-template
+
+# Check for any enrichment indices that might need cleanup
+GET _cat/indices/.enrich-*
+# You can delete any .enrich indices if needed
+
+#########################
+#########################
+
+# Create the metrics index
+
+PUT metrics-test
+{
+  "settings": {
+    "number_of_shards": 3,
+    "number_of_replicas": 1,
+    "index.mapping.total_fields.limit": 2000,
+    "index.refresh_interval": "5s"
+  },
+  "mappings": {
+    "properties": {
+      "@timestamp": {
+        "type": "date"
+      },
+      "agent": {
+        "properties": {
+          "type": {
+            "type": "keyword"
+          },
+          "version": {
+            "type": "keyword"
+          },
+          "hostname": {
+            "type": "keyword"
+          },
+          "ephemeral_id": {
+            "type": "keyword"
+          },
+          "id": {
+            "type": "keyword"
+          }
+        }
+      },
+      "service": {
+        "properties": {
+          "type": {
+            "type": "keyword"
+          },
+          "name": {
+            "type": "keyword"
+          },
+          "version": {
+            "type": "keyword"
+          },
+          "environment": {
+            "type": "keyword"
+          }
+        }
+      },
+      "host": {
+        "properties": {
+          "name": {
+            "type": "keyword"
+          },
+          "hostname": {
+            "type": "keyword"
+          },
+          "architecture": {
+            "type": "keyword"
+          },
+          "os": {
+            "properties": {
+              "platform": {
+                "type": "keyword"
+              },
+              "name": {
+                "type": "keyword"
+              },
+              "family": {
+                "type": "keyword"
+              },
+              "version": {
+                "type": "keyword"
+              },
+              "kernel": {
+                "type": "keyword"
+              }
+            }
+          },
+          "ip": {
+            "type": "ip"
+          }
+        }
+      },
+      "event": {
+        "properties": {
+          "module": {
+            "type": "keyword"
+          },
+          "dataset": {
+            "type": "keyword"
+          },
+          "duration": {
+            "type": "long"
+          }
+        }
+      },
+      "metricset": {
+        "properties": {
+          "name": {
+            "type": "keyword"
+          },
+          "period": {
+            "type": "long"
+          }
+        }
+      },
+      "metadata": {
+        "properties": {
+          "slo_relevant": {
+            "type": "boolean"
+          },
+          "metric_category": {
+            "type": "keyword"
+          }
+        }
+      },
+      "kafka": {
+        "properties": {
+          "broker": {
+            "properties": {
+              "address": {
+                "type": "keyword"
+              },
+              "id": {
+                "type": "long"
+              },
+              "active_controller": {
+                "type": "boolean"
+              },
+              "request": {
+                "properties": {
+                  "queue": {
+                    "type": "long"
+                  },
+                  "time": {
+                    "properties": {
+                      "avg": {
+                        "properties": {
+                          "ms": {
+                            "type": "float"
+                          }
+                        }
+                      },
+                      "max": {
+                        "properties": {
+                          "ms": {
+                            "type": "float"
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              },
+              "network": {
+                "properties": {
+                  "io": {
+                    "properties": {
+                      "rate": {
+                        "type": "float"
+                      }
+                    }
+                  }
+                }
+              },
+              "messages": {
+                "properties": {
+                  "in": {
+                    "properties": {
+                      "rate": {
+                        "type": "float"
+                      }
+                    }
+                  }
+                }
+              },
+              "bytes": {
+                "properties": {
+                  "in": {
+                    "properties": {
+                      "rate": {
+                        "type": "float"
+                      }
+                    }
+                  },
+                  "out": {
+                    "properties": {
+                      "rate": {
+                        "type": "float"
+                      }
+                    }
+                  },
+                  "rejected": {
+                    "properties": {
+                      "rate": {
+                        "type": "float"
+                      }
+                    }
+                  }
+                }
+              },
+              "replication": {
+                "properties": {
+                  "bytes": {
+                    "properties": {
+                      "in": {
+                        "properties": {
+                          "rate": {
+                            "type": "float"
+                          }
+                        }
+                      },
+                      "out": {
+                        "properties": {
+                          "rate": {
+                            "type": "float"
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              },
+              "topic": {
+                "properties": {
+                  "count": {
+                    "type": "long"
+                  }
+                }
+              },
+              "partition": {
+                "properties": {
+                  "count": {
+                    "type": "long"
+                  }
+                }
+              },
+              "leader": {
+                "properties": {
+                  "count": {
+                    "type": "long"
+                  }
+                }
+              },
+              "offline_partition": {
+                "properties": {
+                  "count": {
+                    "type": "long"
+                  }
+                }
+              },
+              "under_replicated_partition": {
+                "properties": {
+                  "count": {
+                    "type": "long"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "mysql": {
+        "properties": {
+          "status": {
+            "properties": {
+              "threads": {
+                "properties": {
+                  "connected": {
+                    "type": "long"
+                  },
+                  "running": {
+                    "type": "long"
+                  },
+                  "created": {
+                    "type": "long"
+                  },
+                  "cached": {
+                    "type": "long"
+                  }
+                }
+              },
+              "connections": {
+                "type": "long"
+              },
+              "aborted": {
+                "properties": {
+                  "clients": {
+                    "type": "long"
+                  },
+                  "connects": {
+                    "type": "long"
+                  }
+                }
+              },
+              "queries": {
+                "type": "long"
+              },
+              "questions": {
+                "type": "long"
+              },
+              "slow_queries": {
+                "type": "long"
+              },
+              "innodb": {
+                "properties": {
+                  "buffer_pool": {
+                    "properties": {
+                      "pages": {
+                        "properties": {
+                          "total": {
+                            "type": "long"
+                          },
+                          "free": {
+                            "type": "long"
+                          },
+                          "dirty": {
+                            "type": "long"
+                          }
+                        }
+                      },
+                      "read": {
+                        "properties": {
+                          "requests": {
+                            "type": "long"
+                          },
+                          "ahead": {
+                            "properties": {
+                              "rnd": {
+                                "type": "long"
+                              },
+                              "sequential": {
+                                "type": "long"
+                              }
+                            }
+                          },
+                          "ahead_evicted": {
+                            "type": "long"
+                          }
+                        }
+                      },
+                      "reads": {
+                        "type": "long"
+                      },
+                      "wait_free": {
+                        "properties": {
+                          "us": {
+                            "type": "long"
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "system": {
+        "properties": {
+          "cpu": {
+            "properties": {
+              "user": {
+                "properties": {
+                  "pct": {
+                    "type": "float"
+                  }
+                }
+              },
+              "system": {
+                "properties": {
+                  "pct": {
+                    "type": "float"
+                  }
+                }
+              },
+              "idle": {
+                "properties": {
+                  "pct": {
+                    "type": "float"
+                  }
+                }
+              },
+              "iowait": {
+                "properties": {
+                  "pct": {
+                    "type": "float"
+                  }
+                }
+              },
+              "total": {
+                "properties": {
+                  "pct": {
+                    "type": "float"
+                  }
+                }
+              }
+            }
+          },
+          "load": {
+            "properties": {
+              "1": {
+                "type": "float"
+              },
+              "5": {
+                "type": "float"
+              },
+              "15": {
+                "type": "float"
+              },
+              "norm": {
+                "properties": {
+                  "1": {
+                    "type": "float"
+                  },
+                  "5": {
+                    "type": "float"
+                  },
+                  "15": {
+                    "type": "float"
+                  }
+                }
+              }
+            }
+          },
+          "memory": {
+            "properties": {
+              "total": {
+                "type": "long"
+              },
+              "used": {
+                "properties": {
+                  "bytes": {
+                    "type": "long"
+                  },
+                  "pct": {
+                    "type": "float"
+                  }
+                }
+              },
+              "free": {
+                "type": "long"
+              },
+              "actual": {
+                "properties": {
+                  "used": {
+                    "properties": {
+                      "bytes": {
+                        "type": "long"
+                      },
+                      "pct": {
+                        "type": "float"
+                      }
+                    }
+                  },
+                  "free": {
+                    "type": "long"
+                  }
+                }
+              },
+              "swap": {
+                "properties": {
+                  "total": {
+                    "type": "long"
+                  },
+                  "used": {
+                    "properties": {
+                      "bytes": {
+                        "type": "long"
+                      },
+                      "pct": {
+                        "type": "float"
+                      }
+                    }
+                  },
+                  "free": {
+                    "type": "long"
+                  }
+                }
+              }
+            }
+          },
+          "network": {
+            "properties": {
+              "in": {
+                "properties": {
+                  "bytes": {
+                    "type": "long"
+                  },
+                  "packets": {
+                    "type": "long"
+                  }
+                }
+              },
+              "out": {
+                "properties": {
+                  "bytes": {
+                    "type": "long"
+                  },
+                  "packets": {
+                    "type": "long"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}
+
+#########################
+#########################
+
+# Create the thresholds index
+
+PUT service_thresholds
+{
+  "settings": {
+    "number_of_shards": 1,
+    "number_of_replicas": 1
+  },
+  "mappings": {
+    "properties": {
+      "_enrich_key": {
+        "type": "keyword"
+      },
+      "service": {
+        "properties": {
+          "type": {
+            "type": "keyword"
+          },
+          "name": {
+            "type": "keyword"
+          },
+          "environment": {
+            "type": "keyword"
+          }
+        }
+      },
+      "thresholds": {
+        "type": "object",
+        "enabled": true,
+        "properties": {
+          "kafka": {
+            "properties": {
+              "broker": {
+                "properties": {
+                  "request": {
+                    "properties": {
+                      "queue": {
+                        "properties": {
+                          "warning": { "type": "long" },
+                          "critical": { "type": "long" }
+                        }
+                      },
+                      "time": {
+                        "properties": {
+                          "avg": {
+                            "properties": {
+                              "ms": {
+                                "properties": {
+                                  "warning": { "type": "float" },
+                                  "critical": { "type": "float" }
+                                }
+                              }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  },
+                  "network": {
+                    "properties": {
+                      "io": {
+                        "properties": {
+                          "rate": {
+                            "properties": {
+                              "warning": { "type": "float" },
+                              "critical": { "type": "float" }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  },
+                  "messages": {
+                    "properties": {
+                      "in": {
+                        "properties": {
+                          "rate": {
+                            "properties": {
+                              "warning": { "type": "float" },
+                              "critical": { "type": "float" }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  },
+                  "offline_partition": {
+                    "properties": {
+                      "count": {
+                        "properties": {
+                          "warning": { "type": "long" },
+                          "critical": { "type": "long" }
+                        }
+                      }
+                    }
+                  },
+                  "under_replicated_partition": {
+                    "properties": {
+                      "count": {
+                        "properties": {
+                          "warning": { "type": "long" },
+                          "critical": { "type": "long" }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "mysql": {
+            "properties": {
+              "status": {
+                "properties": {
+                  "threads": {
+                    "properties": {
+                      "connected": {
+                        "properties": {
+                          "warning": { "type": "long" },
+                          "critical": { "type": "long" }
+                        }
+                      },
+                      "running": {
+                        "properties": {
+                          "warning": { "type": "long" },
+                          "critical": { "type": "long" }
+                        }
+                      }
+                    }
+                  },
+                  "slow_queries": {
+                    "properties": {
+                      "warning": { "type": "long" },
+                      "critical": { "type": "long" }
+                    }
+                  },
+                  "aborted": {
+                    "properties": {
+                      "clients": {
+                        "properties": {
+                          "warning": { "type": "long" },
+                          "critical": { "type": "long" }
+                        }
+                      },
+                      "connects": {
+                        "properties": {
+                          "warning": { "type": "long" },
+                          "critical": { "type": "long" }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "system": {
+            "properties": {
+              "cpu": {
+                "properties": {
+                  "total": {
+                    "properties": {
+                      "pct": {
+                        "properties": {
+                          "warning": { "type": "float" },
+                          "critical": { "type": "float" }
+                        }
+                      }
+                    }
+                  },
+                  "iowait": {
+                    "properties": {
+                      "pct": {
+                        "properties": {
+                          "warning": { "type": "float" },
+                          "critical": { "type": "float" }
+                        }
+                      }
+                    }
+                  }
+                }
+              },
+              "load": {
+                "properties": {
+                  "1": {
+                    "properties": {
+                      "warning": { "type": "float" },
+                      "critical": { "type": "float" }
+                    }
+                  },
+                  "5": {
+                    "properties": {
+                      "warning": { "type": "float" },
+                      "critical": { "type": "float" }
+                    }
+                  },
+                  "15": {
+                    "properties": {
+                      "warning": { "type": "float" },
+                      "critical": { "type": "float" }
+                    }
+                  }
+                }
+              },
+              "memory": {
+                "properties": {
+                  "used": {
+                    "properties": {
+                      "pct": {
+                        "properties": {
+                          "warning": { "type": "float" },
+                          "critical": { "type": "float" }
+                        }
+                      }
+                    }
+                  },
+                  "swap": {
+                    "properties": {
+                      "used": {
+                        "properties": {
+                          "pct": {
+                            "properties": {
+                              "warning": { "type": "float" },
+                              "critical": { "type": "float" }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}
+
+#########################
+#########################
+
+# Step 5: Create Thresholds Index in Kibana DevTools
+
+PUT service_thresholds/_doc/kafka-production
+{
+  "_enrich_key": "kafka-production",
+  "service": {
+    "type": "kafka",
+    "name": "kafka",
+    "environment": "production"
+  },
+  "thresholds": {
+    "kafka": {
+      "broker": {
+        "request": {
+          "queue": {
+            "warning": 20,
+            "critical": 40
+          },
+          "time": {
+            "avg": {
+              "ms": {
+                "warning": 100,
+                "critical": 200
+              }
+            }
+          }
+        },
+        "network": {
+          "io": {
+            "rate": {
+              "warning": 4000,
+              "critical": 4800
+            }
+          }
+        },
+        "messages": {
+          "in": {
+            "rate": {
+              "warning": 1500,
+              "critical": 1800
+            }
+          }
+        },
+        "offline_partition": {
+          "count": {
+            "warning": 1,
+            "critical": 3
+          }
+        },
+        "under_replicated_partition": {
+          "count": {
+            "warning": 3,
+            "critical": 10
+          }
+        }
+      }
+    },
+    "system": {
+      "cpu": {
+        "total": {
+          "pct": {
+            "warning": 0.7,
+            "critical": 0.9
+          }
+        },
+        "iowait": {
+          "pct": {
+            "warning": 0.1,
+            "critical": 0.2
+          }
+        }
+      },
+      "load": {
+        "1": {
+          "warning": 4,
+          "critical": 8
+        },
+        "5": {
+          "warning": 3.5,
+          "critical": 7
+        },
+        "15": {
+          "warning": 3,
+          "critical": 6
+        }
+      },
+      "memory": {
+        "used": {
+          "pct": {
+            "warning": 0.8,
+            "critical": 0.95
+          }
+        },
+        "swap": {
+          "used": {
+            "pct": {
+              "warning": 0.5,
+              "critical": 0.8
+            }
+          }
+        }
+      }
+    }
+  }
+}
+
+# MySQL server thresholds
+PUT service_thresholds/_doc/mysql-production
+{
+  "_enrich_key": "mysql-production",
+  "service": {
+    "type": "mysql",
+    "name": "mysql",
+    "environment": "production"
+  },
+  "thresholds": {
+    "mysql": {
+      "status": {
+        "threads": {
+          "connected": {
+            "warning": 80,
+            "critical": 150
+          },
+          "running": {
+            "warning": 15,
+            "critical": 25
+          }
+        },
+        "slow_queries": {
+          "warning": 50,
+          "critical": 100
+        },
+        "aborted": {
+          "clients": {
+            "warning": 30,
+            "critical": 60
+          },
+          "connects": {
+            "warning": 10,
+            "critical": 25
+          }
+        }
+      }
+    },
+    "system": {
+      "cpu": {
+        "total": {
+          "pct": {
+            "warning": 0.7,
+            "critical": 0.9
+          }
+        },
+        "iowait": {
+          "pct": {
+            "warning": 0.15,
+            "critical": 0.25
+          }
+        }
+      },
+      "load": {
+        "1": {
+          "warning": 3.5,
+          "critical": 7
+        },
+        "5": {
+          "warning": 3,
+          "critical": 6
+        },
+        "15": {
+          "warning": 2.5,
+          "critical": 5
+        }
+      },
+      "memory": {
+        "used": {
+          "pct": {
+            "warning": 0.8,
+            "critical": 0.95
+          }
+        },
+        "swap": {
+          "used": {
+            "pct": {
+              "warning": 0.5,
+              "critical": 0.8
+            }
+          }
+        }
+      }
+    }
+  }
+}
+
+# System-specific thresholds (for when we're evaluating system metrics directly)
+PUT service_thresholds/_doc/system-production
+{
+  "_enrich_key": "system-production",
+  "service": {
+    "type": "system",
+    "name": "system",
+    "environment": "production"
+  },
+  "thresholds": {
+    "system": {
+      "cpu": {
+        "total": {
+          "pct": {
+            "warning": 0.75,
+            "critical": 0.9
+          }
+        },
+        "iowait": {
+          "pct": {
+            "warning": 0.12,
+            "critical": 0.25
+          }
+        }
+      },
+      "load": {
+        "1": {
+          "warning": 4,
+          "critical": 8
+        },
+        "5": {
+          "warning": 3.5,
+          "critical": 7
+        },
+        "15": {
+          "warning": 3,
+          "critical": 6
+        }
+      },
+      "memory": {
+        "used": {
+          "pct": {
+            "warning": 0.85,
+            "critical": 0.95
+          }
+        },
+        "swap": {
+          "used": {
+            "pct": {
+              "warning": 0.5,
+              "critical": 0.8
+            }
+          }
+        }
+      }
+    }
+  }
+}
+
+#########################
+#########################
+
+# Step 7: Create Destination Health Status Index
+
+PUT service-health
+{
+  "settings": {
+    "number_of_shards": 1,
+    "number_of_replicas": 1,
+    "index.mapping.nested_objects.limit": 10000,
+    "index.refresh_interval": "10s"
+  },
+  "mappings": {
+    "properties": {
+      "service": {
+        "properties": {
+          "type": {
+            "type": "keyword"
+          },
+          "name": {
+            "type": "keyword"
+          },
+          "environment": {
+            "type": "keyword"
+          }
+        }
+      },
+      "host": {
+        "properties": {
+          "name": {
+            "type": "keyword"
+          },
+          "ip": {
+            "type": "ip"
+          }
+        }
+      },
+      "interval": {
+        "type": "date"
+      },
+      "health_evaluation_timestamp": {
+        "type": "date"
+      },
+      "health": {
+        "properties": {
+          "status": {
+            "type": "keyword"
+          },
+          "evaluation_type": {
+            "type": "keyword"
+          },
+          "issues": {
+            "type": "nested",
+            "properties": {
+              "metric": {
+                "type": "keyword"
+              },
+              "value": {
+                "type": "float"
+              },
+              "threshold": {
+                "type": "float"
+              },
+              "severity": {
+                "type": "keyword"
+              },
+              "message": {
+                "type": "text",
+                "fields": {
+                  "keyword": {
+                    "type": "keyword",
+                    "ignore_above": 256
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+
+      "kafka.broker.request.queue": {
+        "type": "float"
+      },
+      "kafka.broker.request.time.avg.ms": {
+        "type": "float"
+      },
+      "kafka.broker.network.io.rate": {
+        "type": "float"
+      },
+      "kafka.broker.messages.in.rate": {
+        "type": "float"
+      },
+      "kafka.broker.offline_partition.count": {
+        "type": "float"
+      },
+      "kafka.broker.under_replicated_partition.count": {
+        "type": "float"
+      },
+
+      "mysql.status.threads.connected": {
+        "type": "float"
+      },
+      "mysql.status.threads.running": {
+        "type": "float"
+      },
+      "mysql.status.slow_queries": {
+        "type": "float"
+      },
+      "mysql.status.aborted.clients": {
+        "type": "float"
+      },
+      "mysql.status.aborted.connects": {
+        "type": "float"
+      },
+
+      "system.cpu.total.pct": {
+        "type": "float"
+      },
+      "system.cpu.iowait.pct": {
+        "type": "float"
+      },
+      "system.load.1": {
+        "type": "float"
+      },
+      "system.load.5": {
+        "type": "float"
+      },
+      "system.load.15": {
+        "type": "float"
+      },
+      "system.memory.used.pct": {
+        "type": "float"
+      },
+      "system.memory.swap.used.pct": {
+        "type": "float"
+      }
+    }
+  }
+}
+
+#########################
+#########################
+
+# Step 8: Create and Execute the Enrichment Policy
+
+# Create the enrichment policy
+PUT _enrich/policy/service_threshold_policy
+{
+  "match": {
+    "indices": "service_thresholds",
+    "match_field": "_enrich_key",
+    "enrich_fields": ["service", "thresholds"]
+  }
+}
+
+# Execute the policy to build the enrichment index
+POST _enrich/policy/service_threshold_policy/_execute
+
+#########################
+#########################
+
+# Step 9: Create Router Pipeline
+
+PUT _ingest/pipeline/router_health_evaluation
+{
+  "description": "Router pipeline that handles common operations and routes to specialized pipelines",
+  "processors": [
+    {
+      "set": {
+        "field": "health_evaluation_timestamp",
+        "value": "{{_ingest.timestamp}}"
+      }
+    },
+    {
+      "set": {
+        "field": "_enrich_key",
+        "value": "{{service.name}}-{{service.environment}}"
+      }
+    },
+    {
+      "enrich": {
+        "field": "_enrich_key",
+        "policy_name": "service_threshold_policy",
+        "target_field": "thresholds",
+        "ignore_missing": true
+      }
+    },
+    {
+      "pipeline": {
+        "if": "ctx.service?.type == 'kafka'",
+        "name": "kafka_health_evaluation"
+      }
+    },
+    {
+      "pipeline": {
+        "if": "ctx.service?.type == 'mysql'",
+        "name": "mysql_health_evaluation"
+      }
+    },
+    {
+      "pipeline": {
+        "if": "ctx.metadata?.slo_relevant == true",
+        "name": "slo_health_evaluation"
+      }
+    },
+    {
+      "pipeline": {
+        "name": "system_health_evaluation"
+      }
+    },
+    {
+      "remove": {
+        "field": "_enrich_key",
+        "ignore_missing": true
+      }
+    }
+  ]
+}
+
+#########################
+#########################
+
+# Step 10: Create Specialized Pipelines
+
+# Create Kafka Health Evaluation Pipeline
+PUT _ingest/pipeline/kafka_health_evaluation
+{
+  "description": "Evaluates health of Kafka services based on broker metrics",
+  "processors": [
+    {
+      "script": {
+        "description": "Evaluate Kafka broker health",
+        "lang": "painless",
+        "source": """
+          // Initialize health structure if it doesn't exist
+          if (ctx.health == null) {
+            ctx.health = new HashMap();
+            ctx.health.issues = new ArrayList();
+          }
+
+          // Set evaluation type
+          ctx.health.evaluation_type = "kafka";
+
+          // Define severity levels
+          def HEALTHY = 0;
+          def WARNING = 1;
+          def CRITICAL = 2;
+          int currentSeverity = HEALTHY;
+
+          // Get Kafka thresholds if available
+          def kafkaThresholds = ctx.thresholds?.thresholds?.kafka?.broker;
+          if (kafkaThresholds == null) {
+            ctx.health.status = "unknown";
+            Map issue = new HashMap();
+            issue.put("message", "No Kafka thresholds defined for this service");
+            ctx.health.issues.add(issue);
+            return;
+          }
+
+          // Flatten critical Kafka metrics for easier access in service-health
+          if (ctx.kafka?.broker?.request?.queue != null) {
+            ctx['kafka.broker.request.queue'] = ctx.kafka.broker.request.queue;
+          }
+          if (ctx.kafka?.broker?.request?.time?.avg?.ms != null) {
+            ctx['kafka.broker.request.time.avg.ms'] = ctx.kafka.broker.request.time.avg.ms;
+          }
+          if (ctx.kafka?.broker?.network?.io?.rate != null) {
+            ctx['kafka.broker.network.io.rate'] = ctx.kafka.broker.network.io.rate;
+          }
+          if (ctx.kafka?.broker?.messages?.in?.rate != null) {
+            ctx['kafka.broker.messages.in.rate'] = ctx.kafka.broker.messages.in.rate;
+          }
+          if (ctx.kafka?.broker?.offline_partition?.count != null) {
+            ctx['kafka.broker.offline_partition.count'] = ctx.kafka.broker.offline_partition.count;
+          }
+          if (ctx.kafka?.broker?.under_replicated_partition?.count != null) {
+            ctx['kafka.broker.under_replicated_partition.count'] = ctx.kafka.broker.under_replicated_partition.count;
+          }
+
+          // Check request queue
+          if (ctx.kafka?.broker?.request?.queue != null && kafkaThresholds?.request?.queue != null) {
+            def metric = "kafka.broker.request.queue";
+            def value = ctx.kafka.broker.request.queue;
+            def warnThreshold = kafkaThresholds.request.queue.warning;
+            def critThreshold = kafkaThresholds.request.queue.critical;
+
+            if (critThreshold != null && value >= critThreshold) {
+              currentSeverity = CRITICAL;
+              Map issue = new HashMap();
+              issue.put("metric", metric);
+              issue.put("value", value);
+              issue.put("threshold", critThreshold);
+              issue.put("severity", "critical");
+              issue.put("message", "Kafka request queue is critical: " + value + " (threshold: " + critThreshold + ")");
+              ctx.health.issues.add(issue);
+            } else if (warnThreshold != null && value >= warnThreshold) {
+              if (WARNING > currentSeverity) currentSeverity = WARNING;
+              Map issue = new HashMap();
+              issue.put("metric", metric);
+              issue.put("value", value);
+              issue.put("threshold", warnThreshold);
+              issue.put("severity", "warning");
+              issue.put("message", "Kafka request queue is elevated: " + value + " (threshold: " + warnThreshold + ")");
+              ctx.health.issues.add(issue);
+            }
+          }
+
+          // Check request processing time
+          if (ctx.kafka?.broker?.request?.time?.avg?.ms != null && kafkaThresholds?.request?.time?.avg?.ms != null) {
+            def metric = "kafka.broker.request.time.avg.ms";
+            def value = ctx.kafka.broker.request.time.avg.ms;
+            def warnThreshold = kafkaThresholds.request.time.avg.ms.warning;
+            def critThreshold = kafkaThresholds.request.time.avg.ms.critical;
+
+            if (critThreshold != null && value >= critThreshold) {
+              currentSeverity = CRITICAL;
+              Map issue = new HashMap();
+              issue.put("metric", metric);
+              issue.put("value", value);
+              issue.put("threshold", critThreshold);
+              issue.put("severity", "critical");
+              issue.put("message", "Kafka request processing time is critical: " + value + "ms (threshold: " + critThreshold + "ms)");
+              ctx.health.issues.add(issue);
+            } else if (warnThreshold != null && value >= warnThreshold) {
+              if (WARNING > currentSeverity) currentSeverity = WARNING;
+              Map issue = new HashMap();
+              issue.put("metric", metric);
+              issue.put("value", value);
+              issue.put("threshold", warnThreshold);
+              issue.put("severity", "warning");
+              issue.put("message", "Kafka request processing time is elevated: " + value + "ms (threshold: " + warnThreshold + "ms)");
+              ctx.health.issues.add(issue);
+            }
+          }
+
+          // Check offline partitions (this is typically a critical metric for Kafka)
+          if (ctx.kafka?.broker?.offline_partition?.count != null && kafkaThresholds?.offline_partition?.count != null) {
+            def metric = "kafka.broker.offline_partition.count";
+            def value = ctx.kafka.broker.offline_partition.count;
+            def warnThreshold = kafkaThresholds.offline_partition.count.warning;
+            def critThreshold = kafkaThresholds.offline_partition.count.critical;
+
+            if (critThreshold != null && value >= critThreshold) {
+              currentSeverity = CRITICAL;
+              Map issue = new HashMap();
+              issue.put("metric", metric);
+              issue.put("value", value);
+              issue.put("threshold", critThreshold);
+              issue.put("severity", "critical");
+              issue.put("message", "Kafka has " + value + " offline partitions (critical threshold: " + critThreshold + ")");
+              ctx.health.issues.add(issue);
+            } else if (warnThreshold != null && value >= warnThreshold) {
+              if (WARNING > currentSeverity) currentSeverity = WARNING;
+              Map issue = new HashMap();
+              issue.put("metric", metric);
+              issue.put("value", value);
+              issue.put("threshold", warnThreshold);
+              issue.put("severity", "warning");
+              issue.put("message", "Kafka has " + value + " offline partitions (warning threshold: " + warnThreshold + ")");
+              ctx.health.issues.add(issue);
+            }
+          }
+
+          // Check under-replicated partitions
+          if (ctx.kafka?.broker?.under_replicated_partition?.count != null && kafkaThresholds?.under_replicated_partition?.count != null) {
+            def metric = "kafka.broker.under_replicated_partition.count";
+            def value = ctx.kafka.broker.under_replicated_partition.count;
+            def warnThreshold = kafkaThresholds.under_replicated_partition.count.warning;
+            def critThreshold = kafkaThresholds.under_replicated_partition.count.critical;
+
+            if (critThreshold != null && value >= critThreshold) {
+              currentSeverity = CRITICAL;
+              Map issue = new HashMap();
+              issue.put("metric", metric);
+              issue.put("value", value);
+              issue.put("threshold", critThreshold);
+              issue.put("severity", "critical");
+              issue.put("message", "Kafka has " + value + " under-replicated partitions (critical threshold: " + critThreshold + ")");
+              ctx.health.issues.add(issue);
+            } else if (warnThreshold != null && value >= warnThreshold) {
+              if (WARNING > currentSeverity) currentSeverity = WARNING;
+              Map issue = new HashMap();
+              issue.put("metric", metric);
+              issue.put("value", value);
+              issue.put("threshold", warnThreshold);
+              issue.put("severity", "warning");
+              issue.put("message", "Kafka has " + value + " under-replicated partitions (warning threshold: " + warnThreshold + ")");
+              ctx.health.issues.add(issue);
+            }
+          }
+
+          // Set the overall health status based on the highest severity encountered
+          ctx.health.status = currentSeverity == HEALTHY ? "healthy" : (currentSeverity == WARNING ? "warning" : "critical");
+        """
+      }
+    }
+  ]
+}
+
+# Create MySQL Health Evaluation Pipeline
+PUT _ingest/pipeline/mysql_health_evaluation
+{
+  "description": "Evaluates health of MySQL services based on database metrics",
+  "processors": [
+    {
+      "script": {
+        "description": "Evaluate MySQL health",
+        "lang": "painless",
+        "source": """
+          // Initialize health structure if it doesn't exist
+          if (ctx.health == null) {
+            ctx.health = new HashMap();
+            ctx.health.issues = new ArrayList();
+          }
+
+          // Set evaluation type
+          ctx.health.evaluation_type = "mysql";
+
+          // Define severity levels
+          def HEALTHY = 0;
+          def WARNING = 1;
+          def CRITICAL = 2;
+          int currentSeverity = HEALTHY;
+
+          // Get MySQL thresholds if available
+          def mysqlThresholds = ctx.thresholds?.thresholds?.mysql?.status;
+          if (mysqlThresholds == null) {
+            ctx.health.status = "unknown";
+            Map issue = new HashMap();
+            issue.put("message", "No MySQL thresholds defined for this service");
+            ctx.health.issues.add(issue);
+            return;
+          }
+
+          // Flatten critical MySQL metrics for easier access in service-health
+          if (ctx.mysql?.status?.threads?.connected != null) {
+            ctx['mysql.status.threads.connected'] = ctx.mysql.status.threads.connected;
+          }
+          if (ctx.mysql?.status?.threads?.running != null) {
+            ctx['mysql.status.threads.running'] = ctx.mysql.status.threads.running;
+          }
+          if (ctx.mysql?.status?.slow_queries != null) {
+            ctx['mysql.status.slow_queries'] = ctx.mysql.status.slow_queries;
+          }
+          if (ctx.mysql?.status?.aborted?.clients != null) {
+            ctx['mysql.status.aborted.clients'] = ctx.mysql.status.aborted.clients;
+          }
+          if (ctx.mysql?.status?.aborted?.connects != null) {
+            ctx['mysql.status.aborted.connects'] = ctx.mysql.status.aborted.connects;
+          }
+
+          // Check connected threads
+          if (ctx.mysql?.status?.threads?.connected != null && mysqlThresholds?.threads?.connected != null) {
+            def metric = "mysql.status.threads.connected";
+            def value = ctx.mysql.status.threads.connected;
+            def warnThreshold = mysqlThresholds.threads.connected.warning;
+            def critThreshold = mysqlThresholds.threads.connected.critical;
+
+            if (critThreshold != null && value >= critThreshold) {
+              currentSeverity = CRITICAL;
+              Map issue = new HashMap();
+              issue.put("metric", metric);
+              issue.put("value", value);
+              issue.put("threshold", critThreshold);
+              issue.put("severity", "critical");
+              issue.put("message", "MySQL connected threads count is critical: " + value + " (threshold: " + critThreshold + ")");
+              ctx.health.issues.add(issue);
+            } else if (warnThreshold != null && value >= warnThreshold) {
+              if (WARNING > currentSeverity) currentSeverity = WARNING;
+              Map issue = new HashMap();
+              issue.put("metric", metric);
+              issue.put("value", value);
+              issue.put("threshold", warnThreshold);
+              issue.put("severity", "warning");
+              issue.put("message", "MySQL connected threads count is elevated: " + value + " (threshold: " + warnThreshold + ")");
+              ctx.health.issues.add(issue);
+            }
+          }
+
+          // Check running threads
+          if (ctx.mysql?.status?.threads?.running != null && mysqlThresholds?.threads?.running != null) {
+            def metric = "mysql.status.threads.running";
+            def value = ctx.mysql.status.threads.running;
+            def warnThreshold = mysqlThresholds.threads.running.warning;
+            def critThreshold = mysqlThresholds.threads.running.critical;
+
+            if (critThreshold != null && value >= critThreshold) {
+              currentSeverity = CRITICAL;
+              Map issue = new HashMap();
+              issue.put("metric", metric);
+              issue.put("value", value);
+              issue.put("threshold", critThreshold);
+              issue.put("severity", "critical");
+              issue.put("message", "MySQL running threads count is critical: " + value + " (threshold: " + critThreshold + ")");
+              ctx.health.issues.add(issue);
+            } else if (warnThreshold != null && value >= warnThreshold) {
+              if (WARNING > currentSeverity) currentSeverity = WARNING;
+              Map issue = new HashMap();
+              issue.put("metric", metric);
+              issue.put("value", value);
+              issue.put("threshold", warnThreshold);
+              issue.put("severity", "warning");
+              issue.put("message", "MySQL running threads count is elevated: " + value + " (threshold: " + warnThreshold + ")");
+              ctx.health.issues.add(issue);
+            }
+          }
+
+          // Check slow queries
+          if (ctx.mysql?.status?.slow_queries != null && mysqlThresholds?.slow_queries != null) {
+            def metric = "mysql.status.slow_queries";
+            def value = ctx.mysql.status.slow_queries;
+            def warnThreshold = mysqlThresholds.slow_queries.warning;
+            def critThreshold = mysqlThresholds.slow_queries.critical;
+
+            if (critThreshold != null && value >= critThreshold) {
+              currentSeverity = CRITICAL;
+              Map issue = new HashMap();
+              issue.put("metric", metric);
+              issue.put("value", value);
+              issue.put("threshold", critThreshold);
+              issue.put("severity", "critical");
+              issue.put("message", "MySQL slow queries count is critical: " + value + " (threshold: " + critThreshold + ")");
+              ctx.health.issues.add(issue);
+            } else if (warnThreshold != null && value >= warnThreshold) {
+              if (WARNING > currentSeverity) currentSeverity = WARNING;
+              Map issue = new HashMap();
+              issue.put("metric", metric);
+              issue.put("value", value);
+              issue.put("threshold", warnThreshold);
+              issue.put("severity", "warning");
+              issue.put("message", "MySQL slow queries count is elevated: " + value + " (threshold: " + warnThreshold + ")");
+              ctx.health.issues.add(issue);
+            }
+          }
+
+          // Check aborted clients
+          if (ctx.mysql?.status?.aborted?.clients != null && mysqlThresholds?.aborted?.clients != null) {
+            def metric = "mysql.status.aborted.clients";
+            def value = ctx.mysql.status.aborted.clients;
+            def warnThreshold = mysqlThresholds.aborted.clients.warning;
+            def critThreshold = mysqlThresholds.aborted.clients.critical;
+
+            if (critThreshold != null && value >= critThreshold) {
+              currentSeverity = CRITICAL;
+              Map issue = new HashMap();
+              issue.put("metric", metric);
+              issue.put("value", value);
+              issue.put("threshold", critThreshold);
+              issue.put("severity", "critical");
+              issue.put("message", "MySQL aborted clients count is critical: " + value + " (threshold: " + critThreshold + ")");
+              ctx.health.issues.add(issue);
+            } else if (warnThreshold != null && value >= warnThreshold) {
+              if (WARNING > currentSeverity) currentSeverity = WARNING;
+              Map issue = new HashMap();
+              issue.put("metric", metric);
+              issue.put("value", value);
+              issue.put("threshold", warnThreshold);
+              issue.put("severity", "warning");
+              issue.put("message", "MySQL aborted clients count is elevated: " + value + " (threshold: " + warnThreshold + ")");
+              ctx.health.issues.add(issue);
+            }
+          }
+
+          // Set the overall health status based on the highest severity encountered
+          ctx.health.status = currentSeverity == HEALTHY ? "healthy" : (currentSeverity == WARNING ? "warning" : "critical");
+        """
+      }
+    }
+  ]
+}
+
+# Create System Health Evaluation Pipeline
+PUT _ingest/pipeline/system_health_evaluation
+{
+  "description": "Evaluates basic system health metrics across all service types",
+  "processors": [
+    {
+      "script": {
+        "description": "Evaluate system metrics health",
+        "lang": "painless",
+        "source": """
+          // Initialize health structure if it doesn't exist
+          if (ctx.health == null) {
+            ctx.health = new HashMap();
+            ctx.health.issues = new ArrayList();
+          }
+
+          // Only set evaluation type if not already set by a more specific pipeline
+          if (ctx.health.evaluation_type == null) {
+            ctx.health.evaluation_type = "system";
+          }
+
+          // Define severity levels
+          def HEALTHY = 0;
+          def WARNING = 1;
+          def CRITICAL = 2;
+          int currentSeverity = ctx.health.status == "critical" ? CRITICAL :
+                               (ctx.health.status == "warning" ? WARNING : HEALTHY);
+
+          // Get system thresholds if available
+          def sysThresholds = ctx.thresholds?.thresholds?.system;
+          if (sysThresholds == null) {
+            // If we haven't already set a status and have no thresholds, mark as unknown
+            if (ctx.health.status == null) {
+              ctx.health.status = "unknown";
+              Map issue = new HashMap();
+              issue.put("message", "No system thresholds defined for this service");
+              ctx.health.issues.add(issue);
+            }
+            return;
+          }
+
+          // Flatten critical system metrics for easier access in service-health
+          if (ctx.system?.cpu?.total?.pct != null) {
+            ctx['system.cpu.total.pct'] = ctx.system.cpu.total.pct;
+          }
+          if (ctx.system?.cpu?.iowait?.pct != null) {
+            ctx['system.cpu.iowait.pct'] = ctx.system.cpu.iowait.pct;
+          }
+          if (ctx.system?.load != null) {
+            if (ctx.system.load['1'] != null) ctx['system.load.1'] = ctx.system.load['1'];
+            if (ctx.system.load['5'] != null) ctx['system.load.5'] = ctx.system.load['5'];
+            if (ctx.system.load['15'] != null) ctx['system.load.15'] = ctx.system.load['15'];
+          }
+          if (ctx.system?.memory?.used?.pct != null) {
+            ctx['system.memory.used.pct'] = ctx.system.memory.used.pct;
+          }
+          if (ctx.system?.memory?.swap?.used?.pct != null) {
+            ctx['system.memory.swap.used.pct'] = ctx.system.memory.swap.used.pct;
+          }
+
+          // Check CPU usage
+          if (ctx.system?.cpu?.total?.pct != null && sysThresholds?.cpu?.total?.pct != null) {
+            def metric = "system.cpu.total.pct";
+            def value = ctx.system.cpu.total.pct;
+            def warnThreshold = sysThresholds.cpu.total.pct.warning;
+            def critThreshold = sysThresholds.cpu.total.pct.critical;
+
+            if (critThreshold != null && value >= critThreshold) {
+              currentSeverity = CRITICAL;
+              Map issue = new HashMap();
+              issue.put("metric", metric);
+              issue.put("value", value);
+              issue.put("threshold", critThreshold);
+              issue.put("severity", "critical");
+              issue.put("message", "CPU usage is critical: " + (value * 100).round(1) + "% (threshold: " + (critThreshold * 100).round(1) + "%)");
+              ctx.health.issues.add(issue);
+            } else if (warnThreshold != null && value >= warnThreshold) {
+              if (WARNING > currentSeverity) currentSeverity = WARNING;
+              Map issue = new HashMap();
+              issue.put("metric", metric);
+              issue.put("value", value);
+              issue.put("threshold", warnThreshold);
+              issue.put("severity", "warning");
+              issue.put("message", "CPU usage is elevated: " + (value * 100).round(1) + "% (threshold: " + (warnThreshold * 100).round(1) + "%)");
+              ctx.health.issues.add(issue);
+            }
+          }
+
+          // Check I/O wait
+          if (ctx.system?.cpu?.iowait?.pct != null && sysThresholds?.cpu?.iowait?.pct != null) {
+            def metric = "system.cpu.iowait.pct";
+            def value = ctx.system.cpu.iowait.pct;
+            def warnThreshold = sysThresholds.cpu.iowait.pct.warning;
+            def critThreshold = sysThresholds.cpu.iowait.pct.critical;
+
+            if (critThreshold != null && value >= critThreshold) {
+              currentSeverity = CRITICAL;
+              Map issue = new HashMap();
+              issue.put("metric", metric);
+              issue.put("value", value);
+              issue.put("threshold", critThreshold);
+              issue.put("severity", "critical");
+              issue.put("message", "CPU I/O wait is critical: " + (value * 100).round(1) + "% (threshold: " + (critThreshold * 100).round(1) + "%)");
+              ctx.health.issues.add(issue);
+            } else if (warnThreshold != null && value >= warnThreshold) {
+              if (WARNING > currentSeverity) currentSeverity = WARNING;
+              Map issue = new HashMap();
+              issue.put("metric", metric);
+              issue.put("value", value);
+              issue.put("threshold", warnThreshold);
+              issue.put("severity", "warning");
+              issue.put("message", "CPU I/O wait is elevated: " + (value * 100).round(1) + "% (threshold: " + (warnThreshold * 100).round(1) + "%)");
+              ctx.health.issues.add(issue);
+            }
+          }
+
+          // Check memory usage
+          if (ctx.system?.memory?.used?.pct != null && sysThresholds?.memory?.used?.pct != null) {
+            def metric = "system.memory.used.pct";
+            def value = ctx.system.memory.used.pct;
+            def warnThreshold = sysThresholds.memory.used.pct.warning;
+            def critThreshold = sysThresholds.memory.used.pct.critical;
+
+            if (critThreshold != null && value >= critThreshold) {
+              currentSeverity = CRITICAL;
+              Map issue = new HashMap();
+              issue.put("metric", metric);
+              issue.put("value", value);
+              issue.put("threshold", critThreshold);
+              issue.put("severity", "critical");
+              issue.put("message", "Memory usage is critical: " + (value * 100).round(1) + "% (threshold: " + (critThreshold * 100).round(1) + "%)");
+              ctx.health.issues.add(issue);
+            } else if (warnThreshold != null && value >= warnThreshold) {
+              if (WARNING > currentSeverity) currentSeverity = WARNING;
+              Map issue = new HashMap();
+              issue.put("metric", metric);
+              issue.put("value", value);
+              issue.put("threshold", warnThreshold);
+              issue.put("severity", "warning");
+              issue.put("message", "Memory usage is elevated: " + (value * 100).round(1) + "% (threshold: " + (warnThreshold * 100).round(1) + "%)");
+              ctx.health.issues.add(issue);
+            }
+          }
+
+          // Check load average (1m)
+          if (ctx.system?.load != null && ctx.system.load['1'] != null && sysThresholds?.load != null && sysThresholds.load['1'] != null) {
+            def metric = "system.load.1";
+            def value = ctx.system.load['1'];
+            def warnThreshold = sysThresholds.load['1'].warning;
+            def critThreshold = sysThresholds.load['1'].critical;
+
+            if (critThreshold != null && value >= critThreshold) {
+              currentSeverity = CRITICAL;
+              Map issue = new HashMap();
+              issue.put("metric", metric);
+              issue.put("value", value);
+              issue.put("threshold", critThreshold);
+              issue.put("severity", "critical");
+              issue.put("message", "Load average (1m) is critical: " + value + " (threshold: " + critThreshold + ")");
+              ctx.health.issues.add(issue);
+            } else if (warnThreshold != null && value >= warnThreshold) {
+              if (WARNING > currentSeverity) currentSeverity = WARNING;
+              Map issue = new HashMap();
+              issue.put("metric", metric);
+              issue.put("value", value);
+              issue.put("threshold", warnThreshold);
+              issue.put("severity", "warning");
+              issue.put("message", "Load average (1m) is elevated: " + value + " (threshold: " + warnThreshold + ")");
+              ctx.health.issues.add(issue);
+            }
+          }
+
+          // Set the overall health status based on the highest severity encountered
+          // Only update if we found issues or if no status is set yet
+          if (currentSeverity > HEALTHY || ctx.health.status == null) {
+            ctx.health.status = currentSeverity == HEALTHY ? "healthy" : (currentSeverity == WARNING ? "warning" : "critical");
+          }
+        """
+      }
+    }
+  ]
+}
+
+# Create an SLO Evaluation Pipeline
+PUT _ingest/pipeline/slo_health_evaluation
+{
+  "description": "Evaluates service level objectives across services",
+  "processors": [
+    {
+      "script": {
+        "description": "Add SLO evaluation to document",
+        "lang": "painless",
+        "source": """
+          // Initialize health structure if it doesn't exist
+          if (ctx.health == null) {
+            ctx.health = new HashMap();
+            ctx.health.issues = new ArrayList();
+          }
+
+          // Extend health with SLO information
+          if (ctx.health.evaluation_type == null) {
+            ctx.health.evaluation_type = "slo";
+          } else {
+            ctx.health.evaluation_type = ctx.health.evaluation_type + ",slo";
+          }
+
+          // Add SLO metadata if this document is marked as SLO relevant
+          if (ctx.metadata?.slo_relevant == true) {
+
+            // For Kafka services, check response time as SLO
+            if (ctx.service?.type == "kafka" && ctx.kafka?.broker?.request?.time?.avg?.ms != null) {
+              // Example SLO check: Kafka response time < 50ms targeted, < 100ms acceptable
+              def responseTime = ctx.kafka.broker.request.time.avg.ms;
+
+              if (responseTime < 50) {
+                // Within target SLO
+                if (ctx.health.slo == null) {
+                  ctx.health.slo = new HashMap();
+                }
+                ctx.health.slo.status = "meeting";
+                ctx.health.slo.message = "Kafka response time meeting SLO target: " + responseTime + "ms < 50ms";
+              } else if (responseTime < 100) {
+                // Acceptable but not ideal
+                if (ctx.health.slo == null) {
+                  ctx.health.slo = new HashMap();
+                }
+                ctx.health.slo.status = "degraded";
+                ctx.health.slo.message = "Kafka response time degraded but acceptable: " + responseTime + "ms (target: <50ms)";
+
+                // Add an SLO warning issue if none exists yet
+                boolean hasIssue = false;
+                for (issue in ctx.health.issues) {
+                  if (issue.metric == "kafka.broker.request.time.avg.ms" && issue.severity != "critical") {
+                    hasIssue = true;
+                    break;
+                  }
+                }
+
+                if (!hasIssue) {
+                  Map issue = new HashMap();
+                  issue.put("metric", "kafka.broker.request.time.avg.ms");
+                  issue.put("value", responseTime);
+                  issue.put("threshold", 50);
+                  issue.put("severity", "warning");
+                  issue.put("message", "SLO target missed: Kafka response time is " + responseTime + "ms (target: <50ms)");
+                  ctx.health.issues.add(issue);
+
+                  // Update overall health status if needed
+                  if (ctx.health.status == "healthy" || ctx.health.status == null) {
+                    ctx.health.status = "warning";
+                  }
+                }
+              } else {
+                // SLO breach
+                if (ctx.health.slo == null) {
+                  ctx.health.slo = new HashMap();
+                }
+                ctx.health.slo.status = "breached";
+                ctx.health.slo.message = "Kafka response time breaching SLO: " + responseTime + "ms > 100ms maximum";
+
+                // Add a critical SLO issue if none exists yet
+                boolean hasIssue = false;
+                for (issue in ctx.health.issues) {
+                  if (issue.metric == "kafka.broker.request.time.avg.ms" && issue.severity == "critical") {
+                    hasIssue = true;
+                    break;
+                  }
+                }
+
+                if (!hasIssue) {
+                  Map issue = new HashMap();
+                  issue.put("metric", "kafka.broker.request.time.avg.ms");
+                  issue.put("value", responseTime);
+                  issue.put("threshold", 100);
+                  issue.put("severity", "critical");
+                  issue.put("message", "SLO breached: Kafka response time is " + responseTime + "ms (max allowed: 100ms)");
+                  ctx.health.issues.add(issue);
+
+                  // Update overall health status to critical
+                  ctx.health.status = "critical";
+                }
+              }
+            }
+
+            // For MySQL, check thread counts as an SLO
+            if (ctx.service?.type == "mysql" && ctx.mysql?.status?.threads?.running != null) {
+              // Example SLO: Running threads < 10 targeted, < 20 acceptable
+              def runningThreads = ctx.mysql.status.threads.running;
+
+              if (runningThreads < 10) {
+                // Within target SLO
+                if (ctx.health.slo == null) {
+                  ctx.health.slo = new HashMap();
+                }
+                ctx.health.slo.status = "meeting";
+                ctx.health.slo.message = "MySQL running threads meeting SLO target: " + runningThreads + " < 10";
+              } else if (runningThreads < 20) {
+                // Acceptable but not ideal
+                if (ctx.health.slo == null) {
+                  ctx.health.slo = new HashMap();
+                }
+                ctx.health.slo.status = "degraded";
+                ctx.health.slo.message = "MySQL running threads degraded but acceptable: " + runningThreads + " (target: <10)";
+
+                // Add a warning if not already present
+                boolean hasIssue = false;
+                for (issue in ctx.health.issues) {
+                  if (issue.metric == "mysql.status.threads.running" && issue.severity != "critical") {
+                    hasIssue = true;
+                    break;
+                  }
+                }
+
+                if (!hasIssue) {
+                  Map issue = new HashMap();
+                  issue.put("metric", "mysql.status.threads.running");
+                  issue.put("value", runningThreads);
+                  issue.put("threshold", 10);
+                  issue.put("severity", "warning");
+                  issue.put("message", "SLO target missed: MySQL running threads is " + runningThreads + " (target: <10)");
+                  ctx.health.issues.add(issue);
+
+                  // Update overall health status if needed
+                  if (ctx.health.status == "healthy" || ctx.health.status == null) {
+                    ctx.health.status = "warning";
+                  }
+                }
+              } else {
+                // SLO breach
+                if (ctx.health.slo == null) {
+                  ctx.health.slo = new HashMap();
+                }
+                ctx.health.slo.status = "breached";
+                ctx.health.slo.message = "MySQL running threads breaching SLO: " + runningThreads + " > 20 maximum";
+
+                // Add a critical issue if not already present
+                boolean hasIssue = false;
+                for (issue in ctx.health.issues) {
+                  if (issue.metric == "mysql.status.threads.running" && issue.severity == "critical") {
+                    hasIssue = true;
+                    break;
+                  }
+                }
+
+                if (!hasIssue) {
+                  Map issue = new HashMap();
+                  issue.put("metric", "mysql.status.threads.running");
+                  issue.put("value", runningThreads);
+                  issue.put("threshold", 20);
+                  issue.put("severity", "critical");
+                  issue.put("message", "SLO breached: MySQL running threads is " + runningThreads + " (max allowed: 20)");
+                  ctx.health.issues.add(issue);
+
+                  // Update overall health status
+                  ctx.health.status = "critical";
+                }
+              }
+            }
+          }
+        """
+      }
+    }
+  ]
+}
+
+#########################
+#########################
+
+# Step 11: Create and Configure the Transform
+
+PUT _transform/service_health_transform
+{
+  "source": {
+    "index": ["metrics-test"],
+    "query": {
+      "range": {
+        "@timestamp": {
+          "gte": "now-1h"
+        }
+      }
+    }
+  },
+  "dest": {
+    "index": "service-health",
+    "pipeline": "router_health_evaluation"
+  },
+  "frequency": "1m",
+  "sync": {
+    "time": {
+      "field": "@timestamp",
+      "delay": "30s"
+    }
+  },
+  "pivot": {
+    "group_by": {
+      "service.name": {
+        "terms": {
+          "field": "service.name"
+        }
+      },
+      "service.environment": {
+        "terms": {
+          "field": "service.environment"
+        }
+      },
+      "host.name": {
+        "terms": {
+          "field": "host.name"
+        }
+      },
+      "service.type": {
+        "terms": {
+          "field": "service.type"
+        }
+      },
+      "interval": {
+        "date_histogram": {
+          "field": "@timestamp",
+          "fixed_interval": "5m"
+        }
+      }
+    },
+    "aggregations": {
+      "metadata.slo_relevant": {
+        "max": {
+          "field": "metadata.slo_relevant"
+        }
+      },
+      "metadata.metric_category": {
+        "terms": {
+          "field": "metadata.metric_category"
+        }
+      },
+
+      "kafka.broker.request.queue": {
+        "avg": {
+          "field": "kafka.broker.request.queue"
+        }
+      },
+      "kafka.broker.request.time.avg.ms": {
+        "avg": {
+          "field": "kafka.broker.request.time.avg.ms"
+        }
+      },
+      "kafka.broker.network.io.rate": {
+        "avg": {
+          "field": "kafka.broker.network.io.rate"
+        }
+      },
+      "kafka.broker.messages.in.rate": {
+        "avg": {
+          "field": "kafka.broker.messages.in.rate"
+        }
+      },
+      "kafka.broker.offline_partition.count": {
+        "max": {
+          "field": "kafka.broker.offline_partition.count"
+        }
+      },
+      "kafka.broker.under_replicated_partition.count": {
+        "max": {
+          "field": "kafka.broker.under_replicated_partition.count"
+        }
+      },
+
+      "mysql.status.threads.connected": {
+        "avg": {
+          "field": "mysql.status.threads.connected"
+        }
+      },
+      "mysql.status.threads.running": {
+        "avg": {
+          "field": "mysql.status.threads.running"
+        }
+      },
+      "mysql.status.slow_queries": {
+        "avg": {
+          "field": "mysql.status.slow_queries"
+        }
+      },
+      "mysql.status.aborted.clients": {
+        "avg": {
+          "field": "mysql.status.aborted.clients"
+        }
+      },
+      "mysql.status.aborted.connects": {
+        "avg": {
+          "field": "mysql.status.aborted.connects"
+        }
+      },
+
+      "system.cpu.total.pct": {
+        "avg": {
+          "field": "system.cpu.total.pct"
+        }
+      },
+      "system.cpu.iowait.pct": {
+        "avg": {
+          "field": "system.cpu.iowait.pct"
+        }
+      },
+      "system.load.1": {
+        "avg": {
+          "field": "system.load.1"
+        }
+      },
+      "system.load.5": {
+        "avg": {
+          "field": "system.load.5"
+        }
+      },
+      "system.load.15": {
+        "avg": {
+          "field": "system.load.15"
+        }
+      },
+      "system.memory.used.pct": {
+        "avg": {
+          "field": "system.memory.used.pct"
+        }
+      },
+      "system.memory.swap.used.pct": {
+        "avg": {
+          "field": "system.memory.swap.used.pct"
+        }
+      }
+    }
+  },
+  "description": "Aggregates service metrics for health evaluation",
+  "settings": {
+    "max_page_search_size": 500
+  }
+}
+
+# Start the transform
+
+POST _transform/service_health_transform/_start
+
+#########################
+#########################
+
+# Step 12: Start the dataflow
+
+#########################
+# Robust Health Evaluation Pipelines
+#########################
+
+# The following pipelines have been improved for robustness and moved to the pipelines/ directory:
+# - kafka_health_pipeline.json
+# - mysql_health_pipeline.json
+# - system_health_pipeline.json
+
+# These improved pipelines include:
+# 1. Safe value retrieval with proper null checking
+# 2. Safe rounding of numeric values
+# 3. Consistent health status management
+# 4. Clear issue reporting with descriptive messages
+# 5. Proper error handling
+
+# To update the pipelines in Elasticsearch:
+
+# Update Kafka Health Evaluation Pipeline
+PUT _ingest/pipeline/kafka_health_evaluation
+@pipelines/kafka_health_pipeline.json
+
+# Update MySQL Health Evaluation Pipeline
+PUT _ingest/pipeline/mysql_health_evaluation
+@pipelines/mysql_health_pipeline.json
+
+# Update System Health Evaluation Pipeline
+PUT _ingest/pipeline/system_health_evaluation
+@pipelines/system_health_pipeline.json
+
+# After updating the pipelines, restart the transform:
+POST _transform/service_health_transform/_stop?force=true
+POST _transform/service_health_transform/_start
+
+# Check transform status:
+GET _transform/service_health_transform/_stats?pretty

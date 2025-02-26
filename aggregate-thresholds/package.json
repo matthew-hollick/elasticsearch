@@ -1,0 +1,17 @@
+{
+  "name": "aggregate-thresholds",
+  "version": "1.0.0",
+  "description": "```json {   \"@timestamp\": \"2025-02-26T10:15:23.456Z\",   \"service\": {     \"name\": \"payment-processing\",     \"environment\": \"production\",     \"version\": \"2.3.1\",     \"node\": {       \"name\": \"payment-prod-node-03\"     },     \"type\": \"api\"   },   \"host\": {     \"name\": \"ip-10-2-47-129\",     \"ip\": \"10.2.47.129\",     \"os\": {       \"platform\": \"linux\",       \"name\": \"Ubuntu\",       \"version\": \"22.04\"     }   },   \"metrics\": {     \"http\": {       \"response_time\": {         \"avg\": 237,         \"max\": 512,         \"p95\": 320,         \"p99\": 486       },       \"error_rate\": 1.83,       \"request_rate\": 421.5,       \"status_codes\": {         \"200\": 2476,         \"400\": 12,         \"401\": 5,         \"500\": 29       }     },     \"system\": {       \"cpu\": {         \"usage\": 76.8,         \"user\": 42.1,         \"system\": 34.7,         \"iowait\": 3.8       },       \"memory\": {         \"usage\": 82.3,         \"total_bytes\": 16846524416,         \"used_bytes\": 13864529392       },       \"disk\": {         \"io_utilization\": 12.6,         \"free_space_percent\": 43.8       }     },     \"jvm\": {       \"memory\": {         \"heap_used_percent\": 67.5,         \"gc\": {           \"collection_count\": 42,           \"collection_time_ms\": 230         }       }     }   },   \"event\": {     \"created\": \"2025-02-26T10:15:23.456Z\",     \"dataset\": \"metrics\",     \"kind\": \"metric\",     \"module\": \"service\"   },   \"agent\": {     \"type\": \"metricbeat\",     \"version\": \"8.12.0\",     \"ephemeral_id\": \"a762b33c-5dac-4b57-8406-4e547878c4e9\"   },   \"ecs\": {     \"version\": \"8.2.0\"   },   \"metadata\": {     \"slo_relevant\": true,     \"metric_category\": \"customer_facing\"   } } ```",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "validate-mermaid": "npx mmdc -i FLOWCHART.mmd -o flowchart.png",
+    "validate-mermaid-check": "npx mmdc -i FLOWCHART.mmd -o test-output.png && rm test-output.png"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "@mermaid-js/mermaid-cli": "^10.8.0"
+  }
+}

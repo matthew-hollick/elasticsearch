@@ -1,0 +1,107 @@
+// Initialize health structure if it doesn't exist
+if (ctx.health == null) {
+  ctx.health = new HashMap();
+  ctx.health.issues = new ArrayList();
+}
+
+// Constants for severity levels
+def HEALTHY = 0;
+def WARNING = 1;
+def CRITICAL = 2;
+
+// Initialize Kafka health structure
+if (ctx.health.kafka == null) {
+  ctx.health.kafka = new HashMap();
+  ctx.health.kafka.status = HEALTHY;
+  ctx.health.kafka.metrics = new HashMap();
+}
+
+// Check if we have Kafka metrics to evaluate
+if (ctx.containsKey('kafka')) {
+  // Evaluate request queue
+  if (ctx.containsKey('kafka.broker.request.queue')) {
+    def metric = ctx['kafka.broker.request.queue'];
+    def metricName = 'broker.request.queue';
+    def status = HEALTHY;
+    def message = null;
+
+    // Get thresholds from enrichment
+    def warning = ctx.threshold?.kafka?.broker?.request?.queue?.warning;
+    def critical = ctx.threshold?.kafka?.broker?.request?.queue?.critical;
+
+    if (critical != null && metric >= critical) {
+      status = CRITICAL;
+      message = 'Kafka broker request queue is critically high: ' + metric + ' (threshold: ' + critical + ')';
+    } else if (warning != null && metric >= warning) {
+      status = WARNING;
+      message = 'Kafka broker request queue is high: ' + metric + ' (threshold: ' + warning + ')';
+    }
+
+    // Store metric evaluation
+    ctx.health.kafka.metrics[metricName] = new HashMap();
+    ctx.health.kafka.metrics[metricName].value = metric;
+    ctx.health.kafka.metrics[metricName].status = status;
+    ctx.health.kafka.metrics[metricName].warning_threshold = warning;
+    ctx.health.kafka.metrics[metricName].critical_threshold = critical;
+
+    // Update overall Kafka status
+    if (status > ctx.health.kafka.status) {
+      ctx.health.kafka.status = status;
+    }
+
+    // Add issue if not healthy
+    if (status > HEALTHY && message != null) {
+      def issue = new HashMap();
+      issue.component = 'kafka';
+      issue.metric = metricName;
+      issue.severity = status == CRITICAL ? 'critical' : 'warning';
+      issue.message = message;
+      ctx.health.issues.add(issue);
+    }
+  }
+
+  // Evaluate request time
+  if (ctx.containsKey('kafka.broker.request.time.avg.ms')) {
+    def metric = ctx['kafka.broker.request.time.avg.ms'];
+    def metricName = 'broker.request.time.avg.ms';
+    def status = HEALTHY;
+    def message = null;
+
+    // Get thresholds from enrichment
+    def warning = ctx.threshold?.kafka?.broker?.request?.time?.avg?.ms?.warning;
+    def critical = ctx.threshold?.kafka?.broker?.request?.time?.avg?.ms?.critical;
+
+    if (critical != null && metric >= critical) {
+      status = CRITICAL;
+      message = 'Kafka broker request time is critically high: ' + metric + ' ms (threshold: ' + critical + ' ms)';
+    } else if (warning != null && metric >= warning) {
+      status = WARNING;
+      message = 'Kafka broker request time is high: ' + metric + ' ms (threshold: ' + warning + ' ms)';
+    }
+
+    // Store metric evaluation
+    ctx.health.kafka.metrics[metricName] = new HashMap();
+    ctx.health.kafka.metrics[metricName].value = metric;
+    ctx.health.kafka.metrics[metricName].status = status;
+    ctx.health.kafka.metrics[metricName].warning_threshold = warning;
+    ctx.health.kafka.metrics[metricName].critical_threshold = critical;
+
+    // Update overall Kafka status
+    if (status > ctx.health.kafka.status) {
+      ctx.health.kafka.status = status;
+    }
+
+    // Add issue if not healthy
+    if (status > HEALTHY && message != null) {
+      def issue = new HashMap();
+      issue.component = 'kafka';
+      issue.metric = metricName;
+      issue.severity = status == CRITICAL ? 'critical' : 'warning';
+      issue.message = message;
+      ctx.health.issues.add(issue);
+    }
+  }
+
+  // Add similar evaluations for other Kafka metrics
+  // ...
+}

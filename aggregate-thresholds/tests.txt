@@ -1,0 +1,191 @@
+# Metrics Generator Testing Commands
+# ===============================
+
+# Run the generator script without sending metrics to Elasticsearch
+# This is useful for testing the output format without making actual API calls
+uv run generator.py --no-send --interval 0
+
+# Run the generator script and send metrics to Elasticsearch
+# This will generate metrics for all configured hosts and services
+uv run generator.py --interval 0
+
+# Check the most recent metrics in Elasticsearch
+# This returns the 2 most recent metrics documents sorted by timestamp
+curl -s -k -u elastic:changeme "https://localhost:9200/metrics-*/_search?pretty" -H "Content-Type: application/json" -d '
+{
+  "size": 2,
+  "sort": [
+    {
+      "@timestamp": {
+        "order": "desc"
+      }
+    }
+  ]
+}'
+
+# Count metrics by service type
+# This aggregation shows how many documents exist for each service type
+curl -s -k -u elastic:changeme "https://localhost:9200/metrics-*/_search?pretty" -H "Content-Type: application/json" -d '
+{
+  "size": 0,
+  "aggs": {
+    "service_types": {
+      "terms": {
+        "field": "service.type"
+      }
+    }
+  }
+}'
+
+# View the index mapping
+# This shows the data types and structure of the metrics index
+curl -s -k -u elastic:changeme "https://localhost:9200/metrics-*/_mapping?pretty"
+
+# Query Kafka metrics with CPU usage aggregation
+# This shows average CPU usage for each Kafka broker over time
+curl -s -k -u elastic:changeme "https://localhost:9200/metrics-*/_search?pretty" -H "Content-Type: application/json" -d '
+{
+  "size": 0,
+  "query": {
+    "bool": {
+      "must": [
+        { "term": { "service.type": "kafka" } }
+      ]
+    }
+  },
+  "aggs": {
+    "hosts": {
+      "terms": {
+        "field": "host.name",
+        "size": 10
+      },
+      "aggs": {
+        "cpu_usage_over_time": {
+          "date_histogram": {
+            "field": "@timestamp",
+            "calendar_interval": "1m"
+          },
+          "aggs": {
+            "avg_cpu_usage": {
+              "avg": {
+                "field": "system.cpu.total.pct"
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}'
+
+# Query the most recent MySQL metrics
+# This returns the most recent MySQL metrics document
+curl -s -k -u elastic:changeme "https://localhost:9200/metrics-*/_search?pretty" -H "Content-Type: application/json" -d '
+{
+  "size": 1,
+  "query": {
+    "bool": {
+      "must": [
+        { "term": { "service.type": "mysql" } }
+      ]
+    }
+  },
+  "sort": [
+    {
+      "@timestamp": {
+        "order": "desc"
+      }
+    }
+  ]
+}'
+
+# Query metrics within a specific time range
+# This returns metrics from the last hour
+curl -s -k -u elastic:changeme "https://localhost:9200/metrics-*/_search?pretty" -H "Content-Type: application/json" -d '
+{
+  "size": 10,
+  "query": {
+    "bool": {
+      "must": [
+        {
+          "range": {
+            "@timestamp": {
+              "gte": "now-1h",
+              "lte": "now"
+            }
+          }
+        }
+      ]
+    }
+  },
+  "sort": [
+    {
+      "@timestamp": {
+        "order": "desc"
+      }
+    }
+  ]
+}'
+
+# Query high CPU usage metrics
+# This returns metrics where CPU usage is above 70%
+curl -s -k -u elastic:changeme "https://localhost:9200/metrics-*/_search?pretty" -H "Content-Type: application/json" -d '
+{
+  "size": 10,
+  "query": {
+    "bool": {
+      "must": [
+        {
+          "range": {
+            "system.cpu.total.pct": {
+              "gte": 0.7
+            }
+          }
+        }
+      ]
+    }
+  },
+  "sort": [
+    {
+      "@timestamp": {
+        "order": "desc"
+      }
+    }
+  ]
+}'
+
+# Query high memory usage metrics
+# This returns metrics where memory usage is above 80%
+curl -s -k -u elastic:changeme "https://localhost:9200/metrics-*/_search?pretty" -H "Content-Type: application/json" -d '
+{
+  "size": 10,
+  "query": {
+    "bool": {
+      "must": [
+        {
+          "range": {
+            "system.memory.used.pct": {
+              "gte": 0.8
+            }
+          }
+        }
+      ]
+    }
+  },
+  "sort": [
+    {
+      "@timestamp": {
+        "order": "desc"
+      }
+    }
+  ]
+}'
+
+# Delete all metrics (use with caution)
+# This will delete all documents in the metrics indices
+curl -s -k -u elastic:changeme -XPOST "https://localhost:9200/metrics-*/_delete_by_query?pretty" -H "Content-Type: application/json" -d '
+{
+  "query": {
+    "match_all": {}
+  }
+}'

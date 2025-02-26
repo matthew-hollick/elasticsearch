@@ -1,0 +1,3 @@
+#!/usr/bin/env bash
+
+bin/vulcanizer "$1" --host localhost --port 9200 --protocol https --user elastic --password changeme --skipverify true

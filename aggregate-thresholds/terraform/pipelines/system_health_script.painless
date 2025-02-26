@@ -1,0 +1,107 @@
+// Initialize health structure if it doesn't exist
+if (ctx.health == null) {
+  ctx.health = new HashMap();
+  ctx.health.issues = new ArrayList();
+}
+
+// Constants for severity levels
+def HEALTHY = 0;
+def WARNING = 1;
+def CRITICAL = 2;
+
+// Initialize system health structure
+if (ctx.health.system == null) {
+  ctx.health.system = new HashMap();
+  ctx.health.system.status = HEALTHY;
+  ctx.health.system.metrics = new HashMap();
+}
+
+// Check if we have system metrics to evaluate
+if (ctx.containsKey('system')) {
+  // Evaluate CPU usage
+  if (ctx.containsKey('system.cpu.usage.pct')) {
+    def metric = ctx['system.cpu.usage.pct'];
+    def metricName = 'cpu.usage.pct';
+    def status = HEALTHY;
+    def message = null;
+
+    // Get thresholds from enrichment
+    def warning = ctx.threshold?.system?.cpu?.usage?.pct?.warning;
+    def critical = ctx.threshold?.system?.cpu?.usage?.pct?.critical;
+
+    if (critical != null && metric >= critical) {
+      status = CRITICAL;
+      message = 'System CPU usage is critically high: ' + (metric * 100).round(2) + '% (threshold: ' + (critical * 100).round(2) + '%)';
+    } else if (warning != null && metric >= warning) {
+      status = WARNING;
+      message = 'System CPU usage is high: ' + (metric * 100).round(2) + '% (threshold: ' + (warning * 100).round(2) + '%)';
+    }
+
+    // Store metric evaluation
+    ctx.health.system.metrics[metricName] = new HashMap();
+    ctx.health.system.metrics[metricName].value = metric;
+    ctx.health.system.metrics[metricName].status = status;
+    ctx.health.system.metrics[metricName].warning_threshold = warning;
+    ctx.health.system.metrics[metricName].critical_threshold = critical;
+
+    // Update overall system status
+    if (status > ctx.health.system.status) {
+      ctx.health.system.status = status;
+    }
+
+    // Add issue if not healthy
+    if (status > HEALTHY && message != null) {
+      def issue = new HashMap();
+      issue.component = 'system';
+      issue.metric = metricName;
+      issue.severity = status == CRITICAL ? 'critical' : 'warning';
+      issue.message = message;
+      ctx.health.issues.add(issue);
+    }
+  }
+
+  // Evaluate memory usage
+  if (ctx.containsKey('system.memory.used.pct')) {
+    def metric = ctx['system.memory.used.pct'];
+    def metricName = 'memory.used.pct';
+    def status = HEALTHY;
+    def message = null;
+
+    // Get thresholds from enrichment
+    def warning = ctx.threshold?.system?.memory?.used?.pct?.warning;
+    def critical = ctx.threshold?.system?.memory?.used?.pct?.critical;
+
+    if (critical != null && metric >= critical) {
+      status = CRITICAL;
+      message = 'System memory usage is critically high: ' + (metric * 100).round(2) + '% (threshold: ' + (critical * 100).round(2) + '%)';
+    } else if (warning != null && metric >= warning) {
+      status = WARNING;
+      message = 'System memory usage is high: ' + (metric * 100).round(2) + '% (threshold: ' + (warning * 100).round(2) + '%)';
+    }
+
+    // Store metric evaluation
+    ctx.health.system.metrics[metricName] = new HashMap();
+    ctx.health.system.metrics[metricName].value = metric;
+    ctx.health.system.metrics[metricName].status = status;
+    ctx.health.system.metrics[metricName].warning_threshold = warning;
+    ctx.health.system.metrics[metricName].critical_threshold = critical;
+
+    // Update overall system status
+    if (status > ctx.health.system.status) {
+      ctx.health.system.status = status;
+    }
+
+    // Add issue if not healthy
+    if (status > HEALTHY && message != null) {
+      def issue = new HashMap();
+      issue.component = 'system';
+      issue.metric = metricName;
+      issue.severity = status == CRITICAL ? 'critical' : 'warning';
+      issue.message = message;
+      ctx.health.issues.add(issue);
+    }
+  }
+
+  // Add similar evaluations for other system metrics
+  // ...
+}

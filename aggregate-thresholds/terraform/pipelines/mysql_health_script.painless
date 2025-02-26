@@ -1,0 +1,107 @@
+// Initialize health structure if it doesn't exist
+if (ctx.health == null) {
+  ctx.health = new HashMap();
+  ctx.health.issues = new ArrayList();
+}
+
+// Constants for severity levels
+def HEALTHY = 0;
+def WARNING = 1;
+def CRITICAL = 2;
+
+// Initialize MySQL health structure
+if (ctx.health.mysql == null) {
+  ctx.health.mysql = new HashMap();
+  ctx.health.mysql.status = HEALTHY;
+  ctx.health.mysql.metrics = new HashMap();
+}
+
+// Check if we have MySQL metrics to evaluate
+if (ctx.containsKey('mysql')) {
+  // Evaluate threads connected
+  if (ctx.containsKey('mysql.status.threads.connected')) {
+    def metric = ctx['mysql.status.threads.connected'];
+    def metricName = 'status.threads.connected';
+    def status = HEALTHY;
+    def message = null;
+
+    // Get thresholds from enrichment
+    def warning = ctx.threshold?.mysql?.status?.threads?.connected?.warning;
+    def critical = ctx.threshold?.mysql?.status?.threads?.connected?.critical;
+
+    if (critical != null && metric >= critical) {
+      status = CRITICAL;
+      message = 'MySQL connected threads count is critically high: ' + metric + ' (threshold: ' + critical + ')';
+    } else if (warning != null && metric >= warning) {
+      status = WARNING;
+      message = 'MySQL connected threads count is high: ' + metric + ' (threshold: ' + warning + ')';
+    }
+
+    // Store metric evaluation
+    ctx.health.mysql.metrics[metricName] = new HashMap();
+    ctx.health.mysql.metrics[metricName].value = metric;
+    ctx.health.mysql.metrics[metricName].status = status;
+    ctx.health.mysql.metrics[metricName].warning_threshold = warning;
+    ctx.health.mysql.metrics[metricName].critical_threshold = critical;
+
+    // Update overall MySQL status
+    if (status > ctx.health.mysql.status) {
+      ctx.health.mysql.status = status;
+    }
+
+    // Add issue if not healthy
+    if (status > HEALTHY && message != null) {
+      def issue = new HashMap();
+      issue.component = 'mysql';
+      issue.metric = metricName;
+      issue.severity = status == CRITICAL ? 'critical' : 'warning';
+      issue.message = message;
+      ctx.health.issues.add(issue);
+    }
+  }
+
+  // Evaluate slow queries
+  if (ctx.containsKey('mysql.status.slow_queries')) {
+    def metric = ctx['mysql.status.slow_queries'];
+    def metricName = 'status.slow_queries';
+    def status = HEALTHY;
+    def message = null;
+
+    // Get thresholds from enrichment
+    def warning = ctx.threshold?.mysql?.status?.slow_queries?.warning;
+    def critical = ctx.threshold?.mysql?.status?.slow_queries?.critical;
+
+    if (critical != null && metric >= critical) {
+      status = CRITICAL;
+      message = 'MySQL slow queries count is critically high: ' + metric + ' (threshold: ' + critical + ')';
+    } else if (warning != null && metric >= warning) {
+      status = WARNING;
+      message = 'MySQL slow queries count is high: ' + metric + ' (threshold: ' + warning + ')';
+    }
+
+    // Store metric evaluation
+    ctx.health.mysql.metrics[metricName] = new HashMap();
+    ctx.health.mysql.metrics[metricName].value = metric;
+    ctx.health.mysql.metrics[metricName].status = status;
+    ctx.health.mysql.metrics[metricName].warning_threshold = warning;
+    ctx.health.mysql.metrics[metricName].critical_threshold = critical;
+
+    // Update overall MySQL status
+    if (status > ctx.health.mysql.status) {
+      ctx.health.mysql.status = status;
+    }
+
+    // Add issue if not healthy
+    if (status > HEALTHY && message != null) {
+      def issue = new HashMap();
+      issue.component = 'mysql';
+      issue.metric = metricName;
+      issue.severity = status == CRITICAL ? 'critical' : 'warning';
+      issue.message = message;
+      ctx.health.issues.add(issue);
+    }
+  }
+
+  // Add similar evaluations for other MySQL metrics
+  // ...
+}

@@ -1,0 +1,43 @@
+flowchart TD
+    %% Data Sources
+    KafkaHosts["Kafka Hosts (3)"] --> KafkaMetrics["Kafka Metrics"]
+    MySQLHost["MySQL Host (1)"] --> MySQLMetrics["MySQL Metrics"]
+    AllHosts["Linux System Metrics (4 hosts)"] --> SystemMetrics["System Metrics"]
+
+    %% Data Collection and Storage
+    KafkaMetrics --> MetricsIndex["metrics-test Index"]
+    MySQLMetrics --> MetricsIndex
+    SystemMetrics --> MetricsIndex
+
+    %% Threshold Configuration
+    ThresholdConfig["Threshold Configuration"] --> ThresholdIndex["service_thresholds Index"]
+    ThresholdIndex --> EnrichPolicy["Enrich Policy"]
+
+    %% Transform Processing
+    MetricsIndex --> Transform["Service Health Transform\n(5-minute interval aggregation)"]
+
+    %% Router Pipeline
+    Transform --> RouterPipeline["Router Pipeline\n(Common enrichment & routing)"]
+    EnrichPolicy -.-> RouterPipeline
+
+    %% Specialized Pipelines
+    RouterPipeline --> KafkaPipeline["Kafka Health\nEvaluation Pipeline"]
+    RouterPipeline --> MySQLPipeline["MySQL Health\nEvaluation Pipeline"]
+    RouterPipeline --> SystemPipeline["System Health\nEvaluation Pipeline"]
+    RouterPipeline --> SLOPipeline["SLO\nEvaluation Pipeline"]
+
+    %% Health Status Storage
+    KafkaPipeline --> HealthIndex["service-health Index"]
+    MySQLPipeline --> HealthIndex
+    SystemPipeline --> HealthIndex
+    SLOPipeline --> HealthIndex
+
+    %% Visualization and Alerting
+    HealthIndex --> Dashboards["Kibana Dashboards"]
+    HealthIndex --> Alerts["Elasticsearch Alerting"]
+
+    %% Flow Details
+    MetricsIndex -->|"Contains raw metrics\nwith timestamps"| Transform
+    Transform -->|"Aggregated metrics by\nservice, environment\nand time interval"| RouterPipeline
+    RouterPipeline -->|"Routes documents based on\nservice type and metadata"| KafkaPipeline
+    HealthIndex -->|"Contains evaluated\nhealth status with\ndetailed issues"| Dashboards

@@ -1,0 +1,18 @@
+[tools]
+ripgrep = "14.1.0"
+colima = "latest"
+tflint = "latest"
+terraform-validator = "latest"
+checkov = "latest"
+uv = "latest"
+terraform = "latest"
+node = "latest"
+terrascan = "latest"
+terraform-docs = "latest"
+pre-commit = "latest"
+shellcheck = "latest"
+go = "latest"
+
+#[tasks.install-vulcanizer]
+#description = "Install Vulcanizer - a tool for managing Elasticsearch clusters"
+#run = ".mise/tasks/install-vulcanizer.sh"
