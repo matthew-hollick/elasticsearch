@@ -1,0 +1,123 @@
+x-version: &elastic_version
+  ELASTIC_VERSION: ${ELASTIC_VERSION:-8.17.2}
+
+services:
+  setup:
+    image: docker.elastic.co/elasticsearch/elasticsearch:${ELASTIC_VERSION:-8.17.2}
+    container_name: setup.elasticsearch.hedgehog.internal
+    command: >
+      bash -c '
+        if [[ ! -f config/certs/ca.zip ]]; then
+          bin/elasticsearch-certutil ca --silent --pem -out config/certs/ca.zip;
+          unzip config/certs/ca.zip -d config/certs;
+        fi;
+        if [[ ! -f config/certs/certs.zip ]]; then
+          bin/elasticsearch-certutil cert --silent --pem -out config/certs/certs.zip --in config/certs/instances.yml --ca-cert config/certs/ca/ca.crt --ca-key config/certs/ca/ca.key;
+          unzip config/certs/certs.zip -d config/certs;
+        fi;
+        chown -R 1000:0 config/certs;
+        chmod -R 755 config/certs/
+      '
+    user: "0"
+    working_dir: /usr/share/elasticsearch
+    volumes:
+      - ./certs:/usr/share/elasticsearch/config/certs
+      - ./instances.yml:/usr/share/elasticsearch/config/certs/instances.yml:ro
+    networks:
+      hedgehog_net:
+        aliases:
+          - setup.elasticsearch.hedgehog.internal
+
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:${ELASTIC_VERSION:-8.17.2}
+    container_name: elasticsearch.hedgehog.internal
+    environment:
+      - node.name=elasticsearch.hedgehog.internal
+      - cluster.name=hedgehog-cluster
+      - discovery.type=single-node
+      - ELASTIC_PASSWORD=${ELASTIC_PASSWORD:-changeme}
+      - bootstrap.memory_lock=true
+      - xpack.security.enabled=true
+      - xpack.security.http.ssl.enabled=true
+      - xpack.security.http.ssl.key=/usr/share/elasticsearch/config/certs/elasticsearch/elasticsearch.key
+      - xpack.security.http.ssl.certificate=/usr/share/elasticsearch/config/certs/elasticsearch/elasticsearch.crt
+      - xpack.security.http.ssl.certificate_authorities=/usr/share/elasticsearch/config/certs/ca/ca.crt
+      - xpack.security.transport.ssl.enabled=true
+      - xpack.security.transport.ssl.key=/usr/share/elasticsearch/config/certs/elasticsearch/elasticsearch.key
+      - xpack.security.transport.ssl.certificate=/usr/share/elasticsearch/config/certs/elasticsearch/elasticsearch.crt
+      - xpack.security.transport.ssl.certificate_authorities=/usr/share/elasticsearch/config/certs/ca/ca.crt
+      - xpack.security.transport.ssl.verification_mode=certificate
+      - xpack.license.self_generated.type=trial
+    volumes:
+      - ./certs:/usr/share/elasticsearch/config/certs
+      - elasticsearch-data:/usr/share/elasticsearch/data
+    ports:
+      - "9200:9200"
+    ulimits:
+      memlock:
+        soft: -1
+        hard: -1
+    healthcheck:
+      test: curl -s --cacert config/certs/ca/ca.crt https://localhost:9200 >/dev/null; if [[ $$? == 52 ]]; then echo 0; else echo 1; fi
+      interval: 30s
+      timeout: 10s
+      retries: 5
+    networks:
+      hedgehog_net:
+        aliases:
+          - elasticsearch.hedgehog.internal
+    depends_on:
+      - setup
+
+  kibana:
+    image: docker.elastic.co/kibana/kibana:${ELASTIC_VERSION:-8.17.2}
+    container_name: kibana.elasticsearch.hedgehog.internal
+    environment:
+      - ELASTICSEARCH_HOSTS=https://elasticsearch.hedgehog.internal:9200
+      - ELASTICSEARCH_USERNAME=kibana_system
+      - ELASTICSEARCH_PASSWORD=${KIBANA_PASSWORD:-changeme}
+      - ELASTICSEARCH_SSL_CERTIFICATEAUTHORITIES=/usr/share/kibana/config/certs/ca/ca.crt
+      - SERVER_SSL_ENABLED=true
+      - SERVER_SSL_CERTIFICATE=/usr/share/kibana/config/certs/kibana/kibana.crt
+      - SERVER_SSL_KEY=/usr/share/kibana/config/certs/kibana/kibana.key
+      - XPACK_SECURITY_ENCRYPTIONKEY=hedgehog123456789012345678901234567890
+      - XPACK_ENCRYPTEDSAVEDOBJECTS_ENCRYPTIONKEY=hedgehog123456789012345678901234567890
+      - XPACK_REPORTING_ENCRYPTIONKEY=hedgehog123456789012345678901234567890
+      - XPACK_REPORTING_ROLES_ENABLED=false
+    volumes:
+      - ./certs:/usr/share/kibana/config/certs
+    ports:
+      - "5601:5601"
+    networks:
+      hedgehog_net:
+        aliases:
+          - kibana.elasticsearch.hedgehog.internal
+    depends_on:
+      elasticsearch:
+        condition: service_healthy
+
+  metricbeat:
+    image: docker.elastic.co/beats/metricbeat:${ELASTIC_VERSION:-8.17.2}
+    container_name: metricbeat.elasticsearch.hedgehog.internal
+    user: root
+    environment:
+      - ELASTIC_PASSWORD=${ELASTIC_PASSWORD:-changeme}
+    volumes:
+      - ./certs:/usr/share/metricbeat/certs
+      - ./metricbeat.yml:/usr/share/metricbeat/metricbeat.yml:ro
+    networks:
+      hedgehog_net:
+        aliases:
+          - metricbeat.elasticsearch.hedgehog.internal
+    depends_on:
+      elasticsearch:
+        condition: service_healthy
+
+networks:
+  hedgehog_net:
+    name: hedgehog.internal
+    driver: bridge
+
+volumes:
+  elasticsearch-data:
+    driver: local
