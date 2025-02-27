@@ -53,4 +53,3 @@ temp/
 # Binary directory - keep directory but ignore contents
 bin/*
 !bin/.gitkeep
-
