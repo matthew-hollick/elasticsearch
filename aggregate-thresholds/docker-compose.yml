@@ -1,0 +1,41 @@
+# Work in progress - FIXME
+
+networks:
+  elastic:
+    name: 'elastic'
+    external: true
+
+services:
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:${ELASTICSEARCH_VERSION}
+    environment:
+      - "discovery.type=single-node"
+      - "ES_JAVA_OPTS=-Xms2048m -Xmx2048m"
+      - "xpack.security.enabled=true"
+      - "xpack.security.authc.api_key.enabled=true"
+      - "xpack.security.authc.token.enabled=true"
+      - "ELASTIC_PASSWORD=${ELASTIC_PASSWORD}"
+      - "action.destructive_requires_name=false"
+    ulimits:
+      memlock:
+        soft: -1
+        hard: -1
+    networks:
+      - elastic
+    ports:
+      - 9200:9200
+
+  kibana:
+    image: docker.elastic.co/kibana/kibana:${KIBANA_VERSION}
+    ports:
+      - 5601:5601
+    depends_on:
+      - elasticsearch
+    networks:
+      - elastic
+    environment:
+      ELASTICSEARCH_URL: http://elasticsearch:9200
+      ELASTICSEARCH_HOSTS: http://elasticsearch:9200
+      ELASTICSEARCH_USERNAME: kibana_system
+      ELASTICSEARCH_PASSWORD: ${ELASTIC_PASSWORD}
+      XPACK_ENCRYPTEDSAVEDOBJECTS_ENCRYPTIONKEY: c69548d9027afcf4d55146b1d425a9f4c69548d9027afcf4d55146b1d425a9f4

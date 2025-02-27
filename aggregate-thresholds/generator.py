@@ -1,19 +1,21 @@
 #!/usr/bin/env python3
-
 import argparse
+import hashlib
 import json
+import os
 import random
 import time
 import uuid
-import hashlib
+from datetime import datetime
+from datetime import timezone
+
 import requests
-from datetime import datetime, timezone
 from jinja2 import Template
 
 # Elasticsearch connection details
-ES_HOST = "https://localhost:9200"
-ES_USER = "elastic"
-ES_PASS = "changeme"
+ES_HOST = os.environ.get("ES_HOST", "https://localhost:9200")
+ES_USER = os.environ.get("ES_USER", "elastic")
+ES_PASS = os.environ.get("ES_PASS", "changeme")
 INDEX = "metrics-test"
 
 # Host configuration

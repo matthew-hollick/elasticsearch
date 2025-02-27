@@ -6,6 +6,7 @@ readme = "README.md"
 requires-python = ">=3.13"
 dependencies = [
     "requests",
+    "types-requests",
     "jinja2",
 ]
 
