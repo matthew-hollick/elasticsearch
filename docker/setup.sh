@@ -3,18 +3,14 @@
 # Component versions
 export ELASTIC_VERSION="8.17.2"  # Latest stable version
 
-# Default passwords - change these in production
 export ELASTIC_PASSWORD=${ELASTIC_PASSWORD:-changeme}
 export KIBANA_PASSWORD=${KIBANA_PASSWORD:-changeme}
 
-# Clean up any old certificates
 rm -rf certs/*
 
-# Start the setup container to generate certificates
-docker-compose up setup
+docker compose up setup
 
-# Start Elasticsearch and wait for it to be ready
-docker-compose up -d elasticsearch
+docker compose up -d elasticsearch
 echo "Waiting for Elasticsearch..."
 until curl -k --cacert certs/ca/ca.crt -u elastic:"${ELASTIC_PASSWORD}" https://localhost:9200 >/dev/null 2>&1; do
   sleep 5
@@ -26,14 +22,12 @@ curl -k --cacert certs/ca/ca.crt -X POST -u elastic:"${ELASTIC_PASSWORD}" \
   "https://localhost:9200/_license/start_trial?acknowledge=true" \
   -H "Content-Type: application/json"
 
-# Set kibana_system user password
 echo "Setting kibana_system user password..."
 curl -k --cacert certs/ca/ca.crt -X POST -u elastic:"${ELASTIC_PASSWORD}" \
   "https://localhost:9200/_security/user/kibana_system/_password" \
   -H "Content-Type: application/json" \
   -d "{\"password\":\"${KIBANA_PASSWORD}\"}"
 
-# Create service token for Kibana
 echo "Creating service token for Kibana..."
 TOKEN_RESPONSE=$(curl -k --cacert certs/ca/ca.crt -X POST -u elastic:"${ELASTIC_PASSWORD}" \
   "https://localhost:9200/_security/service/elastic/kibana/credential/token/kibana" \
@@ -45,7 +39,6 @@ export KIBANA_SERVICE_TOKEN
 
 echo "KIBANA_SERVICE_TOKEN=$KIBANA_SERVICE_TOKEN"
 
-# Save tokens to .env file
 echo "Saving environment variables..."
 cat > .env << EOL
 # Password for the 'elastic' user (at least 6 characters)
@@ -61,14 +54,14 @@ KIBANA_SERVICE_TOKEN=${KIBANA_SERVICE_TOKEN}
 ELASTIC_VERSION=${ELASTIC_VERSION}
 EOL
 
-# Start Kibana
 echo "Starting Kibana..."
-docker-compose up -d kibana
+docker compose up -d kibana
 
 echo "Waiting for Kibana to be ready..."
-until curl -s --cacert certs/ca/ca.crt https://localhost:5601/api/status | grep -q '"status":{"overall":{"level":"available"'; do
+until curl -sk --user elastic:"${KIBANA_PASSWORD}" --cacert certs/ca/ca.crt https://localhost:5601/api/status | grep -q 'All services and plugins are available'; do
   sleep 5
 done
+
 
 echo "Setup complete! Your environment is now running with:"
 echo "- Elasticsearch at https://elasticsearch.hedgehog.internal:9200"

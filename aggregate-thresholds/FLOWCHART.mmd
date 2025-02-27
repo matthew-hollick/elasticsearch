@@ -1,8 +1,14 @@
 flowchart TD
     %% Data Sources
-    KafkaHosts["Kafka Hosts (3)"] --> KafkaMetrics["Kafka Metrics"]
-    MySQLHost["MySQL Host (1)"] --> MySQLMetrics["MySQL Metrics"]
-    AllHosts["Linux System Metrics (4 hosts)"] --> SystemMetrics["System Metrics"]
+    subgraph generator["Metrics Generator"]
+      KafkaHosts["Kafka Hosts (3)"]
+      MySQLHost["MySQL Hosts (1)"]
+      AllHosts["Linux System Metrics"]
+    end
+
+    KafkaHosts --> KafkaMetrics["Kafka Metrics"]
+    MySQLHost --> MySQLMetrics["MySQL Metrics"]
+    AllHosts --> SystemMetrics["System Metrics"]
 
     %% Data Collection and Storage
     KafkaMetrics --> MetricsIndex["metrics-test Index"]

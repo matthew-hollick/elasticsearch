@@ -366,6 +366,7 @@ def generate_metrics(host, service_type):
 
 def send_to_elasticsearch(data, host_type):
     """Send metrics to Elasticsearch."""
+    # print(f"Sending metrics to {ES_HOST}")
     url = f"{ES_HOST}/{INDEX}/_doc"
     headers = {"Content-Type": "application/json"}
 
