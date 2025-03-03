@@ -1,0 +1,9 @@
+# Example Bootstrap Configuration
+
+# Elasticsearch connection details
+elasticsearch_url: "https://elasticsearch.hedgehog.internal:9200"
+elasticsearch_username: "hedgehog_admin"
+elasticsearch_password: "your_secure_password_here"
+
+# Configuration index name
+config_index_name: "snmp-bridge-config"

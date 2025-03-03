@@ -1,0 +1,85 @@
+sequenceDiagram
+    participant User
+    participant Supervisor
+    participant ConfigLoader
+    participant ConfigWatcher
+    participant ElasticsearchConfig
+    participant WorkerFactory
+    participant Worker
+    participant PrometheusClient
+    participant Transformer
+    participant Batcher
+    participant ElasticsearchOutput
+
+    Note over User, ElasticsearchOutput: Bootstrap Phase
+    User->>Supervisor: Start application
+    Supervisor->>ConfigLoader: Load bootstrap config
+    ConfigLoader-->>ConfigLoader: Read from command line args
+    ConfigLoader-->>ConfigLoader: Read from environment variables
+    ConfigLoader-->>ConfigLoader: Read from config file
+    ConfigLoader-->>ConfigLoader: Merge with precedence
+    ConfigLoader->>Supervisor: Return bootstrap config
+
+    Note over Supervisor, ElasticsearchConfig: Runtime Config Phase
+    Supervisor->>ElasticsearchConfig: Connect using bootstrap config
+    ElasticsearchConfig->>ElasticsearchConfig: Authenticate
+    ElasticsearchConfig->>Supervisor: Return connection
+    Supervisor->>ConfigWatcher: Initialize with ES connection
+    Supervisor->>ConfigWatcher: Fetch initial configs
+    ConfigWatcher->>ElasticsearchConfig: Query config index
+    ElasticsearchConfig-->>ConfigWatcher: Return config records
+    ConfigWatcher->>Supervisor: Return active configs
+
+    Note over Supervisor, ElasticsearchOutput: Worker Initialization
+    Supervisor->>WorkerFactory: Create workers for each config
+    loop For each config
+        WorkerFactory->>Worker: Create worker with config
+        Worker->>PrometheusClient: Initialize with config
+        Worker->>Transformer: Initialize with mapping rules
+        Worker->>Batcher: Initialize with batch config
+        Worker->>ElasticsearchOutput: Initialize with output config
+    end
+    WorkerFactory->>Supervisor: Return worker processes
+
+    Note over Worker, ElasticsearchOutput: Metrics Collection Cycle
+    loop Collection interval
+        Worker->>PrometheusClient: Execute query (with timeout)
+        PrometheusClient-->>PrometheusClient: Handle retries if needed
+        PrometheusClient->>Worker: Return metrics
+        Worker->>Transformer: Transform to ECS format
+        Transformer->>Worker: Return ECS metrics
+        Worker->>Batcher: Add metrics to batch
+
+        alt Batch size trigger
+            Batcher->>Batcher: Size threshold reached
+            Batcher->>Worker: Flush batch
+            Worker->>ElasticsearchOutput: Send batch
+            ElasticsearchOutput->>ElasticsearchOutput: Execute bulk request
+        end
+
+        alt Batch time trigger
+            Batcher->>Batcher: Time threshold reached
+            Batcher->>Worker: Flush batch
+            Worker->>ElasticsearchOutput: Send batch
+            ElasticsearchOutput->>ElasticsearchOutput: Execute bulk request
+        end
+
+        Worker->>ConfigWatcher: Check config current
+        ConfigWatcher->>Worker: Config status
+
+        alt Config outdated
+            Worker->>Supervisor: Signal termination
+            Supervisor->>WorkerFactory: Create replacement worker
+        end
+    end
+
+    Note over ConfigWatcher, Supervisor: Configuration Update Detection
+    loop Periodic check
+        ConfigWatcher->>ElasticsearchConfig: Check for config updates
+        ElasticsearchConfig-->>ConfigWatcher: Return changes
+
+        alt Config changes detected
+            ConfigWatcher->>Supervisor: Notify of changes
+            Supervisor->>Supervisor: Mark affected workers
+        end
+    end

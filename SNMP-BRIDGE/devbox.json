@@ -1,0 +1,22 @@
+{
+  "packages": [
+    "python@3.10",
+    "pre-commit",
+    "poetry",
+    "black",
+    "mypy",
+    "flake8",
+    "isort",
+    "pytest"
+  ],
+  "shell": {
+    "init_hook": [
+      "echo 'Welcome to SNMP-Bridge development environment!'"
+    ],
+    "scripts": {
+      "test": "pytest",
+      "lint": "pre-commit run --all-files",
+      "format": "black snmp_bridge tests && isort snmp_bridge tests"
+    }
+  }
+}
