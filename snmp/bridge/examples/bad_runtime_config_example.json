@@ -1,0 +1,51 @@
+{
+  "version": "1.0.0",
+  "exporters": {
+    "snmp_exporter": {
+      "type": "snmp",
+      "url": "not-a-valid-url",
+      "timeout": "should-be-integer"
+    },
+    "node_exporter": {
+      "type": "node",
+      "url": "http://node-exporter.hedgehog.internal:9100",
+      "auth": {
+        "username": "hedgehog_admin",
+        "password": "secure_password_here",
+        "api_key": "invalid-to-have-both"
+      }
+    }
+  },
+  "targets": {
+    "network_devices": {
+      "exporter": "non_existent_exporter",
+      "interval": -10,
+      "metrics": [
+        {
+          "name": "ifHCInOctets",
+          "path": "ifHCInOctets"
+        }
+      ],
+      "index": "metrics-network-daily"
+    },
+    "server_metrics": {
+      "exporter": "node_exporter",
+      "interval": 30,
+      "metrics": [
+        {
+          "name": "node_cpu_seconds_total",
+          "path": "node_cpu_seconds_total",
+          "ecs_mapping": {
+            "field": "system.cpu.total.pct",
+            "type": "invalid_type"
+          }
+        }
+      ]
+    }
+  },
+  "global": {
+    "timeout": -5,
+    "retries": -1,
+    "concurrency": 0
+  }
+}

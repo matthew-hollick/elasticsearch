@@ -1,0 +1,227 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Runtime Configuration Schema",
+  "description": "Schema for the runtime configuration stored in Elasticsearch",
+  "type": "object",
+  "required": ["version", "exporters", "targets"],
+  "properties": {
+    "version": {
+      "type": "string",
+      "description": "Version of the configuration schema"
+    },
+    "exporters": {
+      "type": "object",
+      "description": "Definition of Prometheus exporters",
+      "additionalProperties": {
+        "type": "object",
+        "required": ["type", "url"],
+        "properties": {
+          "type": {
+            "type": "string",
+            "description": "Type of the exporter (e.g., snmp, node, blackbox)",
+            "examples": ["snmp", "node", "blackbox"]
+          },
+          "url": {
+            "type": "string",
+            "format": "uri",
+            "description": "URL of the exporter"
+          },
+          "auth": {
+            "type": "object",
+            "oneOf": [
+              {
+                "required": ["username", "password"],
+                "properties": {
+                  "username": {
+                    "type": "string",
+                    "description": "Username for basic authentication"
+                  },
+                  "password": {
+                    "type": "string",
+                    "description": "Password for basic authentication"
+                  }
+                }
+              },
+              {
+                "required": ["bearer_token"],
+                "properties": {
+                  "bearer_token": {
+                    "type": "string",
+                    "description": "Bearer token for authentication"
+                  }
+                }
+              },
+              {
+                "required": ["api_key"],
+                "properties": {
+                  "api_key": {
+                    "type": "string",
+                    "description": "API key for authentication"
+                  }
+                }
+              }
+            ]
+          },
+          "tls": {
+            "type": "object",
+            "properties": {
+              "verify": {
+                "type": "boolean",
+                "default": true,
+                "description": "Whether to verify TLS certificates"
+              },
+              "ca_cert": {
+                "type": "string",
+                "description": "Path to CA certificate file"
+              },
+              "client_cert": {
+                "type": "string",
+                "description": "Path to client certificate file"
+              },
+              "client_key": {
+                "type": "string",
+                "description": "Path to client key file"
+              }
+            }
+          },
+          "headers": {
+            "type": "object",
+            "description": "Additional HTTP headers to include in requests",
+            "additionalProperties": {
+              "type": "string"
+            }
+          },
+          "timeout": {
+            "type": "integer",
+            "minimum": 1,
+            "default": 10,
+            "description": "Timeout for requests in seconds"
+          },
+          "metadata": {
+            "type": "object",
+            "description": "Additional metadata for the exporter",
+            "additionalProperties": true
+          }
+        }
+      }
+    },
+    "targets": {
+      "type": "object",
+      "description": "Definition of targets to scrape",
+      "additionalProperties": {
+        "type": "object",
+        "required": ["exporter", "interval", "metrics", "index"],
+        "properties": {
+          "exporter": {
+            "type": "string",
+            "description": "Reference to an exporter defined in the exporters section"
+          },
+          "interval": {
+            "type": "integer",
+            "minimum": 1,
+            "description": "Scrape interval in seconds"
+          },
+          "timeout": {
+            "type": "integer",
+            "minimum": 1,
+            "description": "Timeout for scrape requests in seconds"
+          },
+          "params": {
+            "type": "object",
+            "description": "Parameters to pass to the exporter",
+            "additionalProperties": true
+          },
+          "metrics": {
+            "type": "array",
+            "description": "List of metrics to collect",
+            "items": {
+              "type": "object",
+              "required": ["name", "path"],
+              "properties": {
+                "name": {
+                  "type": "string",
+                  "description": "Name of the metric"
+                },
+                "path": {
+                  "type": "string",
+                  "description": "Path or pattern to match the metric"
+                },
+                "labels": {
+                  "type": "array",
+                  "description": "Labels to include with the metric",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "ecs_mapping": {
+                  "type": "object",
+                  "description": "Mapping to ECS fields",
+                  "properties": {
+                    "field": {
+                      "type": "string",
+                      "description": "ECS field to map to"
+                    },
+                    "type": {
+                      "type": "string",
+                      "enum": ["keyword", "text", "long", "integer", "short", "byte", "double", "float", "date", "boolean", "ip"],
+                      "description": "ECS field type"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "index": {
+            "type": "string",
+            "description": "Elasticsearch index to write metrics to"
+          },
+          "enabled": {
+            "type": "boolean",
+            "default": true,
+            "description": "Whether this target is enabled"
+          },
+          "metadata": {
+            "type": "object",
+            "description": "Additional metadata for the target",
+            "additionalProperties": true
+          }
+        }
+      }
+    },
+    "global": {
+      "type": "object",
+      "description": "Global settings for all exporters and targets",
+      "properties": {
+        "timeout": {
+          "type": "integer",
+          "minimum": 1,
+          "default": 30,
+          "description": "Global timeout for requests in seconds"
+        },
+        "retries": {
+          "type": "integer",
+          "minimum": 0,
+          "default": 3,
+          "description": "Number of retries for failed requests"
+        },
+        "retry_interval": {
+          "type": "integer",
+          "minimum": 1,
+          "default": 5,
+          "description": "Interval between retries in seconds"
+        },
+        "concurrency": {
+          "type": "integer",
+          "minimum": 1,
+          "default": 10,
+          "description": "Maximum number of concurrent scrapes"
+        },
+        "metadata": {
+          "type": "object",
+          "description": "Global metadata to include with all metrics",
+          "additionalProperties": true
+        }
+      }
+    }
+  }
+}

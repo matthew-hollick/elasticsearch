@@ -1,0 +1,20 @@
+# Bad Configuration Example
+bootstrap:
+  # Missing required 'url' field
+  elasticsearch:
+    auth:
+      # Both username/password and api_key provided (should be one or the other)
+      username: "hedgehog_admin"
+      password: "secure_password_here"
+      api_key: "invalid_to_have_both"
+
+    # Invalid boolean value
+    tls:
+      verify: "not_a_boolean"
+
+  # Missing required 'config_index' field
+
+  # Invalid logging level
+  logging:
+    level: "SUPER_DEBUG"
+    file: 123  # Should be a string, not a number

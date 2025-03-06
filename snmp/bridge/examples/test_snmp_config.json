@@ -1,0 +1,88 @@
+{
+  "version": "1.0.0",
+  "exporters": {
+    "local_snmp_exporter": {
+      "type": "snmp",
+      "url": "http://localhost:9116",
+      "timeout": 15
+    }
+  },
+  "targets": {
+    "local_snmp_device": {
+      "exporter": "local_snmp_exporter",
+      "interval": 60,
+      "params": {
+        "module": "system",
+        "target": "127.0.0.1:1613",
+        "auth": "linux"
+      },
+      "metrics": [
+        {
+          "name": "sysDescr",
+          "path": "sysDescr",
+          "labels": ["sysDescr"],
+          "ecs_mapping": {
+            "field": "host.description",
+            "type": "keyword"
+          }
+        },
+        {
+          "name": "sysName",
+          "path": "sysName",
+          "labels": ["sysName"],
+          "ecs_mapping": {
+            "field": "host.name",
+            "type": "keyword"
+          }
+        },
+        {
+          "name": "sysLocation",
+          "path": "sysLocation",
+          "labels": ["sysLocation"],
+          "ecs_mapping": {
+            "field": "host.location",
+            "type": "keyword"
+          }
+        },
+        {
+          "name": "sysContact",
+          "path": "sysContact",
+          "labels": ["sysContact"],
+          "ecs_mapping": {
+            "field": "host.contact",
+            "type": "keyword"
+          }
+        },
+        {
+          "name": "sysUpTime",
+          "path": "sysUpTime",
+          "ecs_mapping": {
+            "field": "host.uptime",
+            "type": "long"
+          }
+        }
+      ],
+      "index": "metrics-snmp-test"
+    }
+  },
+  "global": {
+    "timeout": 30,
+    "retries": 3,
+    "retry_interval": 5,
+    "concurrency": 10,
+    "elasticsearch": {
+      "auth": {
+        "username": "hedgehog_snmp_bridge",
+        "password": "snmp_secure_password"
+      },
+      "tls": {
+        "verify": true
+      }
+    },
+    "metadata": {
+      "environment": "test",
+      "datacenter": "local",
+      "collector": "prometheus-bridge"
+    }
+  }
+}

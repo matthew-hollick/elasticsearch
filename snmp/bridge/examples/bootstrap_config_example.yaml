@@ -1,0 +1,27 @@
+# Bootstrap Configuration Example
+bootstrap:
+  elasticsearch:
+    # URL for the Elasticsearch server
+    url: "https://elasticsearch.hedgehog.internal:9200"
+
+    # Authentication credentials (optional)
+    auth:
+      username: "hedgehog_admin"
+      password: "secure_password_here"
+      # Alternatively, you can use API key instead of username/password
+      # api_key: "your_api_key_here"
+
+    # TLS/SSL configuration (optional)
+    tls:
+      verify: true
+      # ca_cert: "/path/to/ca.crt"
+      # client_cert: "/path/to/client.crt"
+      # client_key: "/path/to/client.key"
+
+  # Configuration index details
+  config_index: "prometheus-bridge-config"
+
+  # Optional logging configuration
+  logging:
+    level: "INFO"
+    # file: "/var/log/prometheus-bridge.log"

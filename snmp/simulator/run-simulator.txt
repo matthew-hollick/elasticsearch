@@ -1,0 +1,21 @@
+# note - this can take a long time to prepare the data
+uv run snmpsim-command-responder --data-dir=data/network --agent-udpv4-endpoint=127.0.0.1:1611
+snmpwalk -v2c -c cisco-n5000 localhost:1611
+
+# start a simulator of network/switch and storage devices:
+
+uv run snmpsim-command-responder \
+  --v3-engine-id auto --data-dir=data/network/switch --agent-udpv4-endpoint=127.0.0.1:1611 \
+  --v3-engine-id auto --data-dir=data/storage        --agent-udpv4-endpoint=127.0.0.1:1612
+
+
+snmpwalk -v2c -c hpe-procurve-516733-b21 localhost:1611
+snmpwalk -v2c -c netapp-ontap-8-2-3      localhost:1612
+snmpwalk -v2c -c slackware               localhost:1613
+
+
+# test exporter using home unifi ap
+curl "localhost:9116/snmp?target=192.168.2.105:161&auth=unifi&module=ubiquiti_unifi"
+
+# test exporter using snmpsim
+curl "localhost:9116/snmp?target=127.0.0.1:1611&auth=cisco&module=cisco_device"

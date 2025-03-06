@@ -1,0 +1,34 @@
+[project]
+name = "Elasticsearch"
+version = "0.1.0"
+description = "some things i have done around elasticsearch"
+readme = "README.md"
+requires-python = ">=3.13"
+dependencies = [
+    "requests",
+    "types-requests",
+    "jinja2",
+    "snmpsim",
+    "snmpsim-data",
+    "pydantic",
+    "pyyaml",
+    "elasticsearch",
+    "elastic-transport",
+    "prometheus-client",
+]
+
+[dependency-groups]
+dev = [
+    "black",
+    "isort",
+    "flake8",
+    "ruff"
+]
+
+[tool.black]
+line-length = 100
+target-version = ["py38"]
+
+[tool.isort]
+profile = "black"
+line_length = 100

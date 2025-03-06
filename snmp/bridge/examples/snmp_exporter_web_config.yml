@@ -1,0 +1,31 @@
+# Web configuration for SNMP Exporter
+# This file configures the web server to use basic authentication
+# Use with --web.config.file=snmp_exporter_web_config.yml
+
+# TLS configuration - currently disabled
+# Uncomment the section below to enable TLS
+# tls_server_config:
+#   # Certificate and key files for HTTPS
+#   cert_file: /etc/snmp_exporter/cert.pem
+#   key_file: /etc/snmp_exporter/key.pem
+#
+#   # Minimum TLS version
+#   min_version: TLS12
+
+# HTTP server configuration
+http_server_config:
+  # Enable HTTP/2 support
+  http2: true
+
+  # Security headers
+  headers:
+    X-Content-Type-Options: nosniff
+    X-Frame-Options: deny
+    Content-Security-Policy: default-src 'self'
+
+# Basic authentication users
+# Passwords should be hashed with bcrypt
+# Generate with: htpasswd -nBC 10 "" | tr -d ':\n'
+# For testing: username=hedgehog_exporter_user, password=password
+basic_auth_users:
+  hedgehog_exporter_user: $2y$10$DOqVsB2YUThVHLF7HUYYi.vm7XI4eZu8Ub/6PmhZuRlf/HVMhjyaO

@@ -6,7 +6,7 @@
 - Metrics in ECS
 
 ## Tasks
-1. Get a snmp simulator up and running in a container 
+1. Get a snmp simulator up and running in a container
   - Focus on SNMP 2c to start with
 2. Build Prometheus SNMP exporter into a container
 3. Curl Prometheus SNMP exporter to demonstrate viability
@@ -21,5 +21,3 @@ https://docs.lextudio.com/snmp/
 
 Whut?
 https://chatgpt.com/g/g-ZWj5VHbh7-snmp-guru
-
-

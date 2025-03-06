@@ -1,0 +1,98 @@
+{
+  "version": "1.0.0",
+  "global": {
+    "timeout": 10,
+    "elasticsearch": {
+      "hosts": ["https://127.0.0.1:9200"],
+      "auth": {
+        "username": "hedgehog_snmp_bridge",
+        "password": "snmp_secure_password"
+      },
+      "tls": {
+        "verify": false
+      }
+    },
+    "metadata": {
+      "collector": "snmp-bridge",
+      "environment": "production"
+    }
+  },
+  "exporters": {
+    "snmp_exporter": {
+      "type": "snmp",
+      "url": "http://localhost:9116",
+      "auth": {
+        "username": "hedgehog_exporter_user",
+        "password": "password"
+      }
+    }
+  },
+  "targets": {
+    "network_devices": {
+      "exporter": "snmp_exporter",
+      "module": "system",
+      "target": "127.0.0.1:1613",
+      "auth": "linux",
+      "interval": 60,
+      "metrics": [
+        {
+          "name": "sysUpTime",
+          "path": "sysUpTime",
+          "ecs_mapping": {
+            "field": "host.uptime",
+            "type": "float"
+          }
+        },
+        {
+          "name": "sysName",
+          "path": "sysName",
+          "ecs_mapping": {
+            "field": "host.name",
+            "type": "keyword"
+          }
+        },
+        {
+          "name": "sysDescr",
+          "path": "sysDescr",
+          "ecs_mapping": {
+            "field": "host.os.full",
+            "type": "text"
+          }
+        }
+      ],
+      "index": "hedgehog-snmp-metrics",
+      "metadata": {
+        "device_type": "router",
+        "location": "datacenter-1",
+        "environment": "production"
+      }
+    },
+    "server_metrics": {
+      "exporter": "snmp_exporter",
+      "exporter_url": "http://127.0.0.1:9116",
+      "module": "system",
+      "target": "127.0.0.1:1613",
+      "auth": "linux",
+      "interval": 30,
+      "index": "hedgehog-snmp-metrics",
+      "metrics": [
+        {
+          "name": "node_cpu_seconds_total",
+          "path": "node_cpu_seconds_total"
+        },
+        {
+          "name": "node_memory_MemFree_bytes",
+          "path": "node_memory_MemFree_bytes"
+        },
+        {
+          "name": "node_filesystem_avail_bytes",
+          "path": "node_filesystem_avail_bytes"
+        }
+      ],
+      "metadata": {
+        "device_type": "server",
+        "collection_method": "prometheus"
+      }
+    }
+  }
+}

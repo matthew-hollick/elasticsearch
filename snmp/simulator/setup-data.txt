@@ -1,0 +1,1 @@
+uv run setup-snmpsim-data ./data

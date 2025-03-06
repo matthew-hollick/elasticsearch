@@ -1,0 +1,19 @@
+{
+  "version": "1.0.0",
+  "elasticsearch": {
+    "url": "https://elasticsearch.hedgehog.internal:9200",
+    "auth": {
+      "username": "hedgehog_snmp_bootstrap",
+      "password": "bootstrap_secure_password"
+    },
+    "tls": {
+      "verify": true,
+      "ca_cert": "/etc/elasticsearch/certs/ca.pem"
+    }
+  },
+  "config_index": ".snmp-bridge-config",
+  "config_id": "default",
+  "refresh_interval": 300,
+  "log_level": "INFO",
+  "log_file": "/var/log/snmp-bridge/bridge.log"
+}
