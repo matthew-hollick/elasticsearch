@@ -16,6 +16,7 @@ override.tf.json
 # Local development environment
 .env
 .envrc
+styles/
 
 # Node.js dependencies
 node_modules/

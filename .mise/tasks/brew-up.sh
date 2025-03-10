@@ -2,4 +2,4 @@
 
 PROJECT_ROOT="$(git rev-parse --show-toplevel)"
 
-brew bundle install --file=${PROJECT_ROOT}/Brewfile
+brew bundle install --file=${PROJECT_ROOT}/.Brewfile

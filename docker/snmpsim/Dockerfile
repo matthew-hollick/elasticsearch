@@ -29,7 +29,9 @@ RUN uv sync
 
 RUN cd /app && uv run setup-snmpsim-data /app/data
 
-ENTRYPOINT uv run snmpsim-command-responder --v3-engine-id auto --data-dir=data/network/switch --agent-udpv4-endpoint=127.0.0.1:1611 --v3-engine-id auto --data-dir=data/storage --agent-udpv4-endpoint=127.0.0.1:1612
+ENTRYPOINT uv run snmpsim-command-responder \
+           --v3-engine-id auto --data-dir=data/network/switch --agent-udpv4-endpoint=127.0.0.1:1611 \
+           --v3-engine-id auto --data-dir=data/storage --agent-udpv4-endpoint=127.0.0.1:1612
 
 EXPOSE 1161/udp
 EXPOSE 1162/udp

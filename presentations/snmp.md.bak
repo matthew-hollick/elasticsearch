@@ -1,0 +1,92 @@
+---
+theme: seriph
+background: https://cover.sli.dev
+class: 'text-center'
+info: |
+  ## Presenting snmp metric collection for Elasticsearch
+  Presentation showing a robust method for collecting SNMP metrics into Elasticsearch
+transition: slide-left
+title: SNMP for Elasticsearch
+mdc: false
+---
+
+# Ingesting SNMP data into Elasticsearch
+
+<div class="absolute bottom-0 left-0 right-0 p-2 text-sm">
+  SNMP: Simple Network Management Protocol
+</div>
+<!--
+Because data is more valuable when it is not in silos
+-->
+
+---
+
+# What is SNMP?
+
+- A standardised protocol used for monitoring and managing network devices like routers, switches, servers, and printers.
+- Enables administrators to remotely collect information about device status, performance, and configuration.
+- Works by allowing management systems to query devices for specific information using a request-response model.
+- Consists of three key components: managers (monitoring stations), agents (software on managed devices), and the Management Information Base (MIB).
+- Has evolved through versions v1, v2c, v3 with v3 adding important security features like strong authentication and encryption.
+
+<div class="absolute bottom-0 left-0 right-0 p-2 text-sm">
+  <b>Out of Scope:</b> SNMP Traps<br>
+  <b>Further Reading:</b> <a href="https://mwl.io/nonfiction/networking#networknomicon">The Networknomicon, or SNMP Mastery</a> by Michael W Lucas
+</div>
+
+---
+
+# Notes on SNMP security
+
+- SNMP implementations below v3 are plain text only.
+- The IETF released SNMPv1 in 1988. The IETF released SNMPv3 in 1998.
+- Historically, the code quality of SNMP agent implementations has been a cause for concern.
+- SNMPv3 configuration is complex and arcane. 
+- Best practice is _still_ to ensure SNMP Agents are only presented on a dedicated management network.
+- Vendors have been gradulary deprecating the management features of SNMP, often in favour of NETCONF/YANG, but maintaining SNMP for read-only metrics.
+
+<div class="absolute bottom-0 left-0 right-0 p-2 text-sm">
+  <b>2002 Security Hole in SNMP:</b> https://it.slashdot.org/story/02/02/12/1936224/security-hole-in-snmp<br>
+  <b>CISA Recommendations:</b> https://www.cisa.gov/news-events/alerts/2017/06/05/reducing-risk-snmp-abuse<br>
+  <b>NCSC Recommendations:</b> https://www.ncsc.gov.uk/blog-post/protect-your-management-interfaces<br>
+  <b>NETCONF + YANG:</b> https://packetpushers.net/blog/using-netconf-yang-to-configure-network-devices-and-why-it-does-not-replace-snmp/
+</div>
+
+---
+
+# Best practices regarding SNMP security
+
+- Wherever supported use SNMPv3.
+- Use dedicated read-only credentials.
+- Keep all SNMP traffic within the originating security zone.
+
+---
+
+# The SNMP monitoring software landscape
+
+## Commercial
+- Openview
+- Solarwinds
+- IBM Netcool Operations Insight
+
+## Open source
+- Cacti
+- Zabbix
+- Prometheus
+
+<div class="absolute bottom-0 left-0 right-0 p-2 text-sm">
+  <b>Openview Ownership:</b> HP (Hewlett-Packard) → HPE (Hewlett Packard Enterprise) → Micro Focus (RIP) → OpenText<br>
+  <b>Solarwinds supply chain attack:</b> https://www.cisecurity.org/solarwinds<br>
+  <b>IBM acquires Micromuse: </b> https://www.cnet.com/tech/services-and-software/ibm-to-acquire-micromuse-for-865-million/
+</div>
+
+<!--
+Openview used to be a market leader with strong integration with Dec, Compaq and HP hardware. Since the aquision by Micro Focus it has deminished in importance.<br>
+Solarwinds has a reputaion of being expensive and complex to license as features are fine grained locked behind multiple, seperately licensed, modules. The security incident in 2020 is still a recent memory.<br>
+Netcool (I used to work on it at Micromuse before they were borged^?^?^?^?^?^? aquired by IBM) is very much focused at carrier grade customers.
+-->
+
+---
+
+# Prometheus
+
