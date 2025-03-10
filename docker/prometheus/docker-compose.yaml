@@ -1,0 +1,24 @@
+services:
+  prometheus:
+    image: prom/prometheus
+    volumes:
+      - "./prometheus.yml:/etc/prometheus/prometheus.yml"
+    networks:
+      - localprom
+    ports:
+      - 9090:9090
+  node-exporter:
+    image: prom/node-exporter
+    networks:
+      - localprom
+    ports:
+      - 9100:9100
+  snmp-exporter:
+    image: prom/snmp-exporter
+    networks:
+      - localprom
+    ports:
+      - 9116:9116
+networks:
+  localprom:
+    driver: bridge

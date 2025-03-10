@@ -1,0 +1,9 @@
+[project]
+name = "snmpsim-docker"
+version = "0.0.1"
+description = "container for snmpsim"
+requires-python = ">=3.13"
+dependencies = [
+    "snmpsim",
+    "snmpsim-data",
+]
