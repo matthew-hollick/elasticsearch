@@ -1,0 +1,313 @@
+#!/usr/bin/env python3
+"""
+Alternative SNMP MIB Coverage Analyzer
+
+This script uses command-line tools (snmpwalk and snmptranslate) instead of 
+Python libraries to analyze MIB coverage for OIDs from an SNMP agent.
+"""
+
+import os
+import sys
+import argparse
+import json
+import subprocess
+import re
+from collections import defaultdict
+
+class SNMPCommandLineAnalyzer:
+    def __init__(self, host, port=161, community='public', mib_dir=None, output_format='text'):
+        """
+        Initialize the SNMP Command Line Analyzer.
+        
+        Args:
+            host (str): The SNMP agent hostname or IP
+            port (int): The SNMP agent port (default: 161)
+            community (str): SNMP community string (default: 'public')
+            mib_dir (str): Directory containing MIB files (default: None)
+            output_format (str): Output format ('text', 'json', or 'csv')
+        """
+        self.host = host
+        self.port = port
+        self.community = community
+        self.mib_dir = mib_dir if mib_dir else './mibs'
+        self.output_format = output_format
+        self.mib_oids = {}  # {oid: {mibs: [mib1, mib2], name: "name"}}
+        self.agent_oids = []
+        
+    def _run_command(self, command):
+        """Run a shell command and return its output."""
+        try:
+            result = subprocess.run(
+                command, 
+                shell=True, 
+                stdout=subprocess.PIPE, 
+                stderr=subprocess.PIPE,
+                text=True
+            )
+            if result.returncode != 0:
+                print(f"Warning: Command '{command}' returned non-zero exit code {result.returncode}")
+                print(f"Error: {result.stderr.strip()}")
+            return result.stdout.strip()
+        except subprocess.SubprocessError as e:
+            print(f"Error executing command '{command}': {e}")
+            return ""
+        
+    def extract_oids_from_mibs(self):
+        """Extract OIDs from MIB files using snmptranslate."""
+        print("Extracting OIDs from MIB files...")
+        
+        # Export MIB directory to environment if provided
+        mib_env = f"MIBDIRS={self.mib_dir}" if self.mib_dir else ""
+        
+        # Get list of MIB files
+        if self.mib_dir and os.path.exists(self.mib_dir):
+            mib_files = [f for f in os.listdir(self.mib_dir) 
+                         if os.path.isfile(os.path.join(self.mib_dir, f)) 
+                         and not f.endswith('.py') 
+                         and not f.startswith('.')]
+        else:
+            print(f"Warning: MIB directory '{self.mib_dir}' does not exist or is not accessible")
+            mib_files = []
+            
+        # If no MIB files in directory, try using system MIBs
+        if not mib_files:
+            print("Using system MIBs...")
+            # Get list of available MIBs
+            mib_list_cmd = "snmptranslate -Tb"
+            mib_output = self._run_command(mib_list_cmd)
+            mib_names = [line.strip() for line in mib_output.split('\n') if line.strip()]
+            
+            for mib_name in mib_names:
+                print(f"Processing MIB: {mib_name}")
+                
+                # Use snmptranslate to get all OIDs in the MIB
+                cmd = f"{mib_env} snmptranslate -m {mib_name} -Tp"
+                output = self._run_command(cmd)
+                
+                # Extract OIDs and names
+                oid_pattern = r'\+--([0-9\.]+) \((\w+)\)'
+                for match in re.finditer(oid_pattern, output):
+                    oid = match.group(1)
+                    name = match.group(2)
+                    
+                    if oid not in self.mib_oids:
+                        self.mib_oids[oid] = {'mibs': [mib_name], 'name': name}
+                    else:
+                        if mib_name not in self.mib_oids[oid]['mibs']:
+                            self.mib_oids[oid]['mibs'].append(mib_name)
+        else:
+            # Process each MIB file
+            for mib_file in mib_files:
+                mib_name = os.path.splitext(mib_file)[0]
+                print(f"Processing MIB: {mib_name}")
+                
+                # Use snmptranslate to get all OIDs in the MIB
+                cmd = f"{mib_env} snmptranslate -m {os.path.join(self.mib_dir, mib_file)} -Tp"
+                output = self._run_command(cmd)
+                
+                # Extract OIDs and names
+                oid_pattern = r'\+--([0-9\.]+) \((\w+)\)'
+                for match in re.finditer(oid_pattern, output):
+                    oid = match.group(1)
+                    name = match.group(2)
+                    
+                    if oid not in self.mib_oids:
+                        self.mib_oids[oid] = {'mibs': [mib_name], 'name': name}
+                    else:
+                        if mib_name not in self.mib_oids[oid]['mibs']:
+                            self.mib_oids[oid]['mibs'].append(mib_name)
+                
+        print(f"Extracted {len(self.mib_oids)} unique OIDs from MIB files")
+        
+    def query_snmp_agent(self):
+        """Query SNMP agent to get all OIDs using snmpwalk."""
+        print(f"Querying SNMP agent at {self.host}:{self.port}...")
+        
+        self.agent_oids = []
+        
+        # Use snmpwalk to query the SNMP agent for all OIDs under .1
+        cmd = f"snmpwalk -v2c -c {self.community} -Obn {self.host}:{self.port} .1"
+        output = self._run_command(cmd)
+        
+        # Parse the output
+        for line in output.split('\n'):
+            if not line.strip():
+                continue
+                
+            # Parse the line to extract OID and value
+            # Format is typically: OID = VALUE_TYPE: VALUE
+            match = re.match(r'([\.\d]+) = ([^:]+): (.*)', line)
+            if match:
+                oid = match.group(1)
+                value_type = match.group(2).strip()
+                value = match.group(3).strip()
+                
+                self.agent_oids.append({
+                    'oid': oid,
+                    'value_type': value_type,
+                    'value': value
+                })
+        
+        print(f"Retrieved {len(self.agent_oids)} OIDs from SNMP agent")
+        
+    def analyze_oid_coverage(self):
+        """Analyze OID coverage by comparing agent OIDs with MIB OIDs."""
+        print("Analyzing OID coverage...")
+        
+        results = {
+            'covered': [],
+            'uncovered': []
+        }
+        
+        # Export MIB directory to environment if provided
+        mib_env = f"MIBDIRS={self.mib_dir}" if self.mib_dir else ""
+        
+        for agent_oid in self.agent_oids:
+            oid = agent_oid['oid']
+            is_covered = False
+            
+            # Check for exact match in our extracted MIB OIDs
+            if oid in self.mib_oids:
+                results['covered'].append({
+                    'oid': oid,
+                    'value': agent_oid['value'],
+                    'mibs': self.mib_oids[oid]['mibs'],
+                    'name': self.mib_oids[oid]['name']
+                })
+                is_covered = True
+                continue
+            
+            # Check if the OID is a child of any MIB OID
+            for mib_oid in self.mib_oids:
+                if oid.startswith(mib_oid + '.'):
+                    results['covered'].append({
+                        'oid': oid,
+                        'value': agent_oid['value'],
+                        'mibs': self.mib_oids[mib_oid]['mibs'],
+                        'name': f"{self.mib_oids[mib_oid]['name']}-instance"
+                    })
+                    is_covered = True
+                    break
+            
+            # If still not covered, try using snmptranslate directly
+            if not is_covered:
+                cmd = f"{mib_env} snmptranslate -m ALL {oid} 2>/dev/null"
+                output = self._run_command(cmd)
+                
+                if output and "Unknown Object Identifier" not in output:
+                    # Extract MIB name from output (e.g., IF-MIB::ifDescr.1)
+                    mib_match = re.match(r'([^:]+)::([^\.]+)', output)
+                    if mib_match:
+                        mib_name = mib_match.group(1)
+                        obj_name = mib_match.group(2)
+                        results['covered'].append({
+                            'oid': oid,
+                            'value': agent_oid['value'],
+                            'mibs': [mib_name],
+                            'name': obj_name
+                        })
+                        is_covered = True
+            
+            if not is_covered:
+                results['uncovered'].append({
+                    'oid': oid,
+                    'value': agent_oid['value']
+                })
+        
+        return results
+    
+    def generate_report(self, results):
+        """Generate a report of the analysis."""
+        if self.output_format == 'json':
+            return json.dumps(results, indent=2)
+        elif self.output_format == 'csv':
+            csv_lines = ['OID,Value,Coverage,MIBs,Name']
+            
+            for oid_info in results['covered']:
+                mibs = '|'.join(oid_info['mibs'])
+                csv_lines.append(f"{oid_info['oid']},{oid_info['value']},covered,{mibs},{oid_info['name']}")
+            
+            for oid_info in results['uncovered']:
+                csv_lines.append(f"{oid_info['oid']},{oid_info['value']},uncovered,,")
+            
+            return '\n'.join(csv_lines)
+        else:  # text format
+            report = []
+            report.append("=" * 80)
+            report.append("SNMP MIB Coverage Analysis Report")
+            report.append("=" * 80)
+            report.append(f"SNMP Agent: {self.host}:{self.port}")
+            report.append(f"Total OIDs retrieved: {len(self.agent_oids)}")
+            report.append(f"OIDs with MIB coverage: {len(results['covered'])}")
+            report.append(f"OIDs without MIB coverage: {len(results['uncovered'])}")
+            report.append("=" * 80)
+            
+            report.append("\nOIDs with MIB coverage:")
+            report.append("-" * 80)
+            for oid_info in results['covered']:
+                report.append(f"OID: {oid_info['oid']}")
+                report.append(f"Value: {oid_info['value']}")
+                report.append(f"Name: {oid_info['name']}")
+                report.append(f"MIBs: {', '.join(oid_info['mibs'])}")
+                report.append("-" * 40)
+            
+            report.append("\nOIDs without MIB coverage:")
+            report.append("-" * 80)
+            for oid_info in results['uncovered']:
+                report.append(f"OID: {oid_info['oid']}")
+                report.append(f"Value: {oid_info['value']}")
+                report.append("-" * 40)
+            
+            return '\n'.join(report)
+    
+    def run(self):
+        """Run the complete analysis."""
+        try:
+            # Check if required commands are available
+            snmpwalk_check = self._run_command("which snmpwalk")
+            snmptranslate_check = self._run_command("which snmptranslate")
+            
+            if not snmpwalk_check or not snmptranslate_check:
+                return "Error: Required commands 'snmpwalk' and/or 'snmptranslate' not found. Please install Net-SNMP tools."
+            
+            self.extract_oids_from_mibs()
+            self.query_snmp_agent()
+            results = self.analyze_oid_coverage()
+            report = self.generate_report(results)
+            return report
+        except Exception as e:
+            import traceback
+            return f"Error during analysis: {str(e)}\n\nDetailed traceback:\n{traceback.format_exc()}"
+
+
+def main():
+    parser = argparse.ArgumentParser(description='Command-line based SNMP MIB Coverage Analyzer')
+    parser.add_argument('--host', required=True, help='SNMP agent hostname or IP')
+    parser.add_argument('--port', type=int, default=161, help='SNMP agent port (default: 161)')
+    parser.add_argument('--community', default='public', help='SNMP community string (default: public)')
+    parser.add_argument('--mib-dir', help='Directory containing MIB files')
+    parser.add_argument('--format', choices=['text', 'json', 'csv'], default='text', help='Output format')
+    parser.add_argument('--output', help='Output file (default: stdout)')
+    
+    args = parser.parse_args()
+    
+    analyzer = SNMPCommandLineAnalyzer(
+        host=args.host,
+        port=args.port,
+        community=args.community,
+        mib_dir=args.mib_dir,
+        output_format=args.format
+    )
+    
+    report = analyzer.run()
+    
+    if args.output:
+        with open(args.output, 'w') as f:
+            f.write(report)
+        print(f"Report written to {args.output}")
+    else:
+        print(report)
+
+
+if __name__ == "__main__":
+    main()
