@@ -13,13 +13,26 @@ import json
 from collections import defaultdict
 import subprocess
 import re
-from pysnmp.hlapi import *
-from pysmi.reader import FileReader
-from pysmi.searcher import PyFileSearcher
-from pysmi.writer import PyFileWriter
-from pysmi.parser import SmiStarParser
-from pysmi.codegen import PySnmpCodeGen
-from pysmi.compiler import MibCompiler
+import traceback
+
+# Proper error handling for imports
+try:
+    # Import pysnmp components explicitly
+    from pysnmp.hlapi import SnmpEngine, CommunityData, UdpTransportTarget
+    from pysnmp.hlapi import ContextData, ObjectType, ObjectIdentity, nextCmd
+    
+    # Import pysmi components explicitly
+    from pysmi.reader import FileReader
+    from pysmi.searcher import PyFileSearcher
+    from pysmi.writer import PyFileWriter
+    from pysmi.parser import SmiStarParser
+    from pysmi.codegen import PySnmpCodeGen
+    from pysmi.compiler import MibCompiler
+    
+    IMPORT_ERROR = None
+except ImportError as e:
+    IMPORT_ERROR = str(e)
+    traceback.print_exc()
 
 class SNMPMIBAnalyzer:
     def __init__(self, host, port=161, community='public', mib_dir=None, output_format='text'):
@@ -226,6 +239,10 @@ class SNMPMIBAnalyzer:
     
     def run(self):
         """Run the complete analysis."""
+        # Check if there was an import error
+        if IMPORT_ERROR:
+            return f"Error importing required modules: {IMPORT_ERROR}\n\nPlease ensure pysnmp and pysmi are installed correctly:\npip install pysnmp pysmi"
+            
         try:
             self.extract_oids_from_mibs()
             self.query_snmp_agent()
@@ -233,7 +250,8 @@ class SNMPMIBAnalyzer:
             report = self.generate_report(results)
             return report
         except Exception as e:
-            return f"Error during analysis: {str(e)}"
+            error_traceback = traceback.format_exc()
+            return f"Error during analysis: {str(e)}\n\nDetailed traceback:\n{error_traceback}"
 
 
 def main():
